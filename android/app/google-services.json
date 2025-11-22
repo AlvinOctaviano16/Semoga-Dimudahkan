@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "894983013536",
+    "project_id": "sync-task-app",
+    "storage_bucket": "sync-task-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:894983013536:android:e1d297af7973dd200f35c5",
+        "android_client_info": {
+          "package_name": "com.example.sync_task_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9Xb18Htr77qz34dlL_kNcF-_1LQ6n-mM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -50,12 +50,9 @@ class TaskRepository {
     Future<void> deleteTask(String taskId){
       return _firestore.collection('task').doc(taskId).delete();
     }
+}
 
-    //Provider Riverpod menyediakan instance TaskRepository
-    final takeRepositoryProvider=Provider<TaskRepository>((ref){
+//Provider Riverpod menyediakan instance TaskRepository
+    final taskRepositoryProvider=Provider<TaskRepository>((ref){
       return TaskRepository(FirebaseFirestore.instance);
     });
-     
-
-
-}

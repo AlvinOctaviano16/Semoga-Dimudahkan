@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "894983013536",
-    "project_id": "sync-task-app",
-    "storage_bucket": "sync-task-app.firebasestorage.app"
+    "project_number": "1081007458050",
+    "project_id": "synctask-397fe",
+    "storage_bucket": "synctask-397fe.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:894983013536:android:e1d297af7973dd200f35c5",
+        "mobilesdk_app_id": "1:1081007458050:android:2e7656055251c982f2a41b",
         "android_client_info": {
-          "package_name": "com.example.sync_task_app"
+          "package_name": "com.synctask.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC9Xb18Htr77qz34dlL_kNcF-_1LQ6n-mM"
+          "current_key": "AIzaSyAAMr7nadrhj6cMFRZAusG5EeSTsg85HXY"
         }
       ],
       "services": {

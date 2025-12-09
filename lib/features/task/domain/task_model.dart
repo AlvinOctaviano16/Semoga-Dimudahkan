@@ -24,22 +24,23 @@ class TaskModel {
     required this.createAt,
   });
 
-  factory TaskModel.fromMap(Map<String, dynamic>map,String id){
-    return TaskModel(
-      id:id,
-      projectId: map['projectId'] as String,
-      title:map['title'] as String,
-      description:map['description'] as String,
-      status:TaskStatus.values.firstWhere(
-        (e)=>e.name == map['status'],
-        orElse:()=> TaskStatus.todo,
-      ),
-      proofUrl: map['proofUrl'] as String?,
-      assignedToId: map['assignedToId'] as String,
-      dueDate:map['dueDate'] as DateTime,
-      createAt: map['createAt'] as DateTime
-    );
-  }
+  factory TaskModel.fromMap(Map<String, dynamic> map, String id) {
+  return TaskModel(
+    id: id,
+    projectId: map['projectId'] as String,
+    title: map['title'] as String,
+    description: map['description'] as String,
+    status: TaskStatus.values.firstWhere(
+      (e) => e.name == map['status'],
+      orElse: () => TaskStatus.todo,
+    ),
+    proofUrl: map['proofUrl'] as String?,
+    assignedToId: map['assignedToId'] as String,
+    dueDate: (map['dueDate'] as Timestamp).toDate(), 
+    createAt: (map['createAt'] as Timestamp).toDate(),
+    // -------------------------
+  );
+}
 
   Map<String,dynamic> toMap(){
     return{

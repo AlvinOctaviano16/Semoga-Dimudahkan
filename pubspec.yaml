@@ -36,7 +36,7 @@ dependencies:
   firebase_auth: ^6.1.2       # Login/Register
   cloud_firestore: ^6.1.0     # Database NoSQL
   firebase_storage: ^13.0.4   # Upload Bukti Foto
-
+  get: ^4.7.3
   # 2. State Management (Requirement Wajib)
   flutter_riverpod: ^3.0.3    # Pilihan kita (Simple & Reaktif)
 

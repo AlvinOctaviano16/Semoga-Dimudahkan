@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
-import 'package:sync_task_app/forgot.dart';
-import 'package:sync_task_app/signup.dart';
+// import 'package:sync_task_app/wrapper.dart'; // Wrapper tidak dipakai disini lagi
 
-class Login extends StatefulWidget {
-  const Login({super.key});
+class Signup extends StatefulWidget {
+  const Signup({super.key});
 
   @override
-  State<Login> createState() => _LoginState();
+  State<Signup> createState() => _SignupState();
 }
 
-class _LoginState extends State<Login> {
+class _SignupState extends State<Signup> {
+  // Controller
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   // Warna Tema
   final Color _backgroundColor = const Color(0xFF000000);
@@ -25,28 +26,36 @@ class _LoginState extends State<Login> {
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> signIn() async {
-    // 1. Tutup Keyboard
+  // --- FUNGSI SIGN UP DENGAN VERIFIKASI ---
+  Future<void> signUp() async {
     FocusManager.instance.primaryFocus?.unfocus();
 
-    // 2. Validasi
-    if (emailController.text.trim().isEmpty || passwordController.text.trim().isEmpty) {
-      Get.snackbar(
-        "Missing Input",
-        "Email dan Password harus diisi.",
-        backgroundColor: const Color(0xFF333333),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-        margin: const EdgeInsets.all(16),
-        borderRadius: 12,
-      );
+    // 1. Validasi Input
+    if (emailController.text.trim().isEmpty || 
+        passwordController.text.trim().isEmpty ||
+        confirmPasswordController.text.trim().isEmpty) {
+      Get.snackbar("Error", "Semua kolom harus diisi.", 
+        backgroundColor: const Color(0xFF333333), colorText: Colors.white);
       return;
     }
 
-    // 3. Tampilkan Loading
+    if (passwordController.text.trim() != confirmPasswordController.text.trim()) {
+      Get.snackbar("Error", "Password tidak sama!", 
+        backgroundColor: Colors.red.shade900, colorText: Colors.white);
+      return;
+    }
+
+    if (passwordController.text.trim().length < 6) {
+      Get.snackbar("Weak Password", "Password minimal 6 karakter.", 
+        backgroundColor: Colors.orange.shade900, colorText: Colors.white);
+      return;
+    }
+
+    // 2. Tampilkan Loading
     Get.dialog(
       Center(
         child: Container(
@@ -62,59 +71,72 @@ class _LoginState extends State<Login> {
     );
 
     try {
-      // 4. Proses Login
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // 3. Buat User Baru
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
-      ).timeout(const Duration(seconds: 15), onTimeout: () {
-        throw FirebaseAuthException(
-          code: 'network-request-failed',
-          message: 'Koneksi timeout. Cek internet Anda.'
-        );
-      });
+      );
 
-      // --- SUKSES ---
-      // Tutup Loading DULUAN sebelum lanjut
+      // 4. KIRIM EMAIL VERIFIKASI
+      if (userCredential.user != null) {
+        await userCredential.user!.sendEmailVerification();
+      }
+
+      // 5. Logout User (Penting!)
+      // Kita logout agar mereka tidak masuk ke Home sebelum verifikasi
+      await FirebaseAuth.instance.signOut();
+
+      // Tutup Loading (Dialog Create User)
       if (Get.isDialogOpen ?? false) Get.back();
+
+      // 6. Tampilkan Dialog Sukses & Instruksi
+      await Get.dialog(
+        AlertDialog(
+          backgroundColor: _fieldColor,
+          title: const Text("Verify Your Email", style: TextStyle(color: Colors.white)),
+          content: Text(
+            "Link verifikasi telah dikirim ke ${emailController.text}.\n\nSilakan cek inbox/spam Anda, verifikasi akun, lalu Login kembali.",
+            style: TextStyle(color: _textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Get.back(); // Tutup Dialog
+                Get.back(); // Kembali ke Halaman Login
+              },
+              child: Text("OK, I Understand", style: TextStyle(color: _accentColor)),
+            ),
+          ],
+        ),
+        barrierDismissible: false,
+      );
 
     } catch (e) {
-      // --- ERROR ---
-      
-      // 1. TUTUP LOADING DULUAN (WAJIB DISINI)
-      // Agar tidak bentrok dengan Snackbar
+      // Tutup Loading jika error
       if (Get.isDialogOpen ?? false) Get.back();
 
-      // 2. Baru Tampilkan Pesan Error
-      String pesanError = "Login failed.";
-      
-      // Deteksi error spesifik
-      if (e.toString().contains("invalid-credential") || 
-          e.toString().contains("wrong-password") ||
-          e.toString().contains("user-not-found")) {
-        pesanError = "Email atau Password salah.";
-      } else if (e.toString().contains("network-request-failed")) {
-        pesanError = "Koneksi bermasalah.";
-      } else if (e.toString().contains("too-many-requests")) {
-        pesanError = "Terlalu banyak percobaan. Tunggu sebentar.";
+      String pesan = "Gagal mendaftar.";
+      if (e.toString().contains("email-already-in-use")) {
+        pesan = "Email sudah terdaftar. Silakan Login.";
+      } else if (e.toString().contains("weak-password")) {
+        pesan = "Password terlalu lemah.";
+      } else if (e.toString().contains("invalid-email")) {
+        pesan = "Format email salah.";
       }
 
       Get.snackbar(
-        "Login Failed",
-        pesanError,
+        "Registration Failed", 
+        pesan,
         backgroundColor: Colors.red.shade900,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
         margin: const EdgeInsets.all(16),
         borderRadius: 12,
-        icon: const Icon(Icons.error_outline, color: Colors.white),
       );
-    } 
-    // Kita tidak pakai 'finally' lagi untuk tutup loading, 
-    // karena sudah ditutup manual di blok 'try' dan blok 'catch'
-    // agar urutannya benar.
+    }
   }
 
-  // Widget Helper (TextField)
+  // Widget Helper Input (Sama seperti sebelumnya)
   Widget _buildAppleTextField({
     required TextEditingController controller,
     required String hint,
@@ -148,6 +170,7 @@ class _LoginState extends State<Login> {
       backgroundColor: _backgroundColor,
       appBar: AppBar(
         backgroundColor: _backgroundColor,
+        iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
       body: Center(
@@ -157,46 +180,50 @@ class _LoginState extends State<Login> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(Icons.task_alt, size: 90, color: _accentColor),
-              const SizedBox(height: 20),
-              
               const Text(
-                "SyncTask",
+                "Create Account",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 32,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                "Manage your tasks efficiently",
+                "Join SyncTask and start organizing",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _textSecondary, fontSize: 16),
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 40),
 
               _buildAppleTextField(
                 controller: emailController, 
-                hint: "Email", 
+                hint: "Email Address", 
                 icon: Icons.mail_outline
               ),
               const SizedBox(height: 16),
               _buildAppleTextField(
                 controller: passwordController, 
                 hint: "Password", 
-                icon: Icons.lock_outline, 
+                icon: Icons.lock_outline,
                 isPassword: true
               ),
-              
+              const SizedBox(height: 16),
+              _buildAppleTextField(
+                controller: confirmPasswordController, 
+                hint: "Confirm Password", 
+                icon: Icons.lock_reset,
+                isPassword: true
+              ),
+
               const SizedBox(height: 30),
 
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: signIn,
+                  onPressed: signUp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _accentColor,
                     foregroundColor: Colors.white,
@@ -206,7 +233,7 @@ class _LoginState extends State<Login> {
                     ),
                   ),
                   child: const Text(
-                    "Sign In",
+                    "Sign Up",
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -217,11 +244,11 @@ class _LoginState extends State<Login> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Don't have an account? ", style: TextStyle(color: _textSecondary)),
+                  Text("Already have an account? ", style: TextStyle(color: _textSecondary)),
                   GestureDetector(
-                    onTap: () => Get.to(() => const Signup()),
+                    onTap: () => Get.back(),
                     child: Text(
-                      "Sign up",
+                      "Sign In",
                       style: TextStyle(
                         color: _accentColor, 
                         fontWeight: FontWeight.w600
@@ -229,16 +256,6 @@ class _LoginState extends State<Login> {
                     ),
                   ),
                 ],
-              ),
-              
-              const SizedBox(height: 12),
-
-              TextButton(
-                onPressed: () => Get.to(() => const Forgot()),
-                child: Text(
-                  "Forgot Password?", 
-                  style: TextStyle(color: _accentColor, fontWeight: FontWeight.w500)
-                ),
               ),
             ],
           ),

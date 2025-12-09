@@ -1,18 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-// import 'firebase_options.dart'; // ini nnti kalau udh setup firebase
+import 'package:sync_task_app/wrapper.dart';
+import 'firebase_options.dart'; 
+import 'package:get/get.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // TODO: Uncomment baris di bawah ini setelah menjalankan 'flutterfire configure'
-  // await Firebase.initializeApp(
-  //   options: DefaultFirebaseOptions.currentPlatform,
-  // );
+  // --- BAGIAN PENGAMAN (FIX) ---
+  // Kita bungkus dengan try-catch agar aplikasi TIDAK CRASH
+  // meskipun terjadi error "Duplicate App"
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      debugPrint("✅ Firebase Berhasil Connect!");
+    } else {
+      debugPrint("ℹ️ Firebase sudah jalan sebelumnya (Aman).");
+    }
+  } catch (e) {
+    // Kalau error, kita print saja tapi JANGAN hentikan aplikasi
+    debugPrint("⚠️ Error Firebase (Diabaikan): $e");
+  }
+  // -----------------------------
 
-  runApp(
-    // Wajib membungkus aplikasi dengan ProviderScope agar Riverpod jalan
-    const ProviderScope(
+  // Baris ini sekarang AMAN dan pasti tereksekusi
+  runApp(const ProviderScope(
       child: MyApp(),
     ),
   );
@@ -23,16 +37,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
+      // Tambahkan debug false biar banner miring hilang
+      debugShowCheckedModeBanner: false, 
       title: 'TeamTask App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      // Nanti ganti ini ke LoginScreen()
-      home: const Scaffold(
-        body: Center(child: Text("Setup Project Berhasil!")),
-      ),
+      home: const Wrapper(), // Gunakan const biar lebih optimal
     );
   }
 }

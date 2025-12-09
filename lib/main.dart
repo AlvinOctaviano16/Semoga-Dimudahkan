@@ -1,32 +1,27 @@
+// Lokasi: lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:sync_task_app/wrapper.dart';
-import 'firebase_options.dart'; 
 import 'package:get/get.dart';
+import 'firebase_options.dart'; 
+import 'features/auth/wrapper.dart'; 
+
 void main() async {
+  // 1. Inisialisasi Binding
   WidgetsFlutterBinding.ensureInitialized();
   
-  // --- BAGIAN PENGAMAN (FIX) ---
-  // Kita bungkus dengan try-catch agar aplikasi TIDAK CRASH
-  // meskipun terjadi error "Duplicate App"
+  // 2. Inisialisasi Firebase dengan Error Handling
   try {
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      debugPrint("✅ Firebase Berhasil Connect!");
-    } else {
-      debugPrint("ℹ️ Firebase sudah jalan sebelumnya (Aman).");
-    }
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
-    // Kalau error, kita print saja tapi JANGAN hentikan aplikasi
-    debugPrint("⚠️ Error Firebase (Diabaikan): $e");
+    debugPrint("⚠️ Firebase Error: $e");
   }
-  // -----------------------------
 
-  // Baris ini sekarang AMAN dan pasti tereksekusi
-  runApp(const ProviderScope(
+  // 3. Jalankan Aplikasi dengan ProviderScope (Wajib untuk Riverpod)
+  runApp(
+    const ProviderScope(
       child: MyApp(),
     ),
   );
@@ -38,14 +33,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      // Tambahkan debug false biar banner miring hilang
       debugShowCheckedModeBanner: false, 
-      title: 'TeamTask App',
+      title: 'SyncTask',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const Wrapper(), // Gunakan const biar lebih optimal
+      // Panggil Wrapper sebagai halaman awal (Untuk cek Login/Logout)
+      home: const Wrapper(), 
     );
   }
 }

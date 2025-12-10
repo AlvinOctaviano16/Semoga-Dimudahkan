@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
-
 import 'firebase_options.dart';
-
 import 'core/auth_wrapper.dart';
 import 'core/constants/app_colors.dart';
+import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +26,11 @@ void main() async {
     print("❌ Error Firebase Init: $e");
     // Lanjut saja, jangan crash.
   }
+
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+
+  await notificationService.getToken();
 
   runApp(
     const ProviderScope(

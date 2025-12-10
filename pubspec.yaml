@@ -45,6 +45,10 @@ dependencies:
   uuid: ^4.5.2                # Generate ID unik 
   google_fonts: ^6.2.1        # Biar font aplikasi bagus
   image_picker: ^1.2.1        # Ambil foto bukti dari Galeri/Kamera
+  firebase_messaging: ^16.0.4
+  flutter_local_notifications: ^19.5.0
+  http: ^1.6.0
+  googleapis_auth: ^2.0.0
 
 
 dev_dependencies:

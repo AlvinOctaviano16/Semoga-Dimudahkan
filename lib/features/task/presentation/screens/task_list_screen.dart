@@ -109,18 +109,28 @@ class TaskListScreen extends ConsumerWidget {
     );
   }
 
+  // 👇 PERUBAHAN: Menambahkan Tombol Back di Header
   Widget _buildModernHeader(BuildContext context) {
     final String todayDate = DateFormat('EEEE, d MMM').format(DateTime.now());
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      padding: const EdgeInsets.fromLTRB(10, 20, 20, 10), // Padding kiri dikurangi sedikit biar tombol back muat
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // 1. TOMBOL BACK
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.primaryText, size: 22),
+            onPressed: () => Navigator.pop(context), // Kembali ke Project Detail
+            tooltip: 'Back to Project',
+          ),
+          
+          const SizedBox(width: 4),
+
+          // 2. JUDUL PROJECT (Expanded)
           Expanded( 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 👇 REVISI: Nama Project Dinamis
                 Text(
                   '${project.name} Tasks', 
                   maxLines: 1,
@@ -128,18 +138,19 @@ class TaskListScreen extends ConsumerWidget {
                   style: const TextStyle(
                     color: AppColors.primaryText,
                     fontWeight: FontWeight.w800,
-                    fontSize: 24, 
+                    fontSize: 22, // Ukuran sedikit disesuaikan
                     letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(todayDate, style: TextStyle(color: Colors.grey[500], fontSize: 14, fontWeight: FontWeight.w500)),
+                Text(todayDate, style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
           
           const SizedBox(width: 10), 
           
+          // 3. PROFILE ICON
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
             child: Container(

@@ -2,18 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../auth/providers/auth_controller.dart';
+import '../../../core/services/notification_service.dart';
 import '../../auth/screens/profile_screen.dart';
+import '../../auth/repositories/auth_repository.dart';
 import '../providers/project_provider.dart';
 import '../repositories/project_repository.dart';
 import 'create_project_screen.dart';
 import 'project_detail_screen.dart'; 
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  
+  @override
+  void initState() {
+    super.initState();
+    // Jalankan penyimpanan token di background saat Dashboard dibuka
+    _saveMyToken();
+  }
+
+  Future<void> _saveMyToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // 1. Ambil Token dari HP ini
+      final token = await NotificationService().getToken();
+      if (token != null) {
+        // 2. Simpan ke Database via AuthRepository
+        await ref.read(authRepositoryProvider).updateFcmToken(user.uid, token);
+        print("✅ Token User disimpan/diupdate di Database");
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final projectListAsync = ref.watch(projectListProvider);
 
     return Scaffold(
@@ -69,7 +96,7 @@ class DashboardScreen extends ConsumerWidget {
                     style: const TextStyle(color: AppColors.textSecondary)
                   ),
                   
-                  // 👇 REVISI: Klik Project -> Masuk ke DETAIL (Lobi Utama)
+                  // Klik Project -> Masuk ke DETAIL
                   onTap: () {
                     Navigator.push(
                       context, 
@@ -79,7 +106,6 @@ class DashboardScreen extends ConsumerWidget {
                     );
                   },
                   
-                  // 👇 REVISI: Ganti Info Icon jadi Panah (Indikasi masuk)
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textSecondary),
                 ),
               );
@@ -88,16 +114,25 @@ class DashboardScreen extends ConsumerWidget {
         },
       ),
 
+      // 👇 BAGIAN INI YANG DIUBAH
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end, // Tambahkan ini agar rata kanan
         children: [
-          FloatingActionButton.small(
+          // TOMBOL 1: JOIN PROJECT (Sekarang pakai .extended)
+          FloatingActionButton.extended(
             heroTag: "join_btn",
-            backgroundColor: AppColors.surface,
+            // Saya beri warna surface (gelap) agar sedikit beda hirarkinya dengan tombol Create
+            // Jika ingin sama-sama biru, ganti jadi AppColors.primary
+            backgroundColor: AppColors.surface, 
             onPressed: () => _showJoinDialog(context, ref),
-            child: const Icon(Icons.link, color: Colors.white),
+            icon: const Icon(Icons.link, color: Colors.white),
+            label: const Text("Join Project", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(height: 16),
+          
+          const SizedBox(height: 16), // Jarak antar tombol
+          
+          // TOMBOL 2: NEW PROJECT (Tetap sama)
           FloatingActionButton.extended(
             heroTag: "create_btn",
             backgroundColor: AppColors.primary,
@@ -113,6 +148,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    // ... (Tidak ada perubahan di sini)
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -140,6 +176,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   void _showJoinDialog(BuildContext context, WidgetRef ref) {
+    // ... (Tidak ada perubahan di sini, sama seperti sebelumnya)
     final codeController = TextEditingController();
     
     showDialog(

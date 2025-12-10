@@ -4,11 +4,13 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../auth/models/user_model.dart';
-import '../../../projects/providers/member_provider.dart'; // Import Provider Member Baru
+import '../../../projects/providers/member_provider.dart'; 
 import '../../domain/task_model.dart';
 import '../../domain/task_provider.dart';
 import '../../domain/task_status.dart';
 import '../../domain/task_priority.dart';
+// Import Repository agar bisa panggil fungsi notif
+import '../../data/task_repository.dart'; 
 
 class CreateTaskScreen extends ConsumerStatefulWidget {
   final String projectId;
@@ -45,12 +47,11 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       _descController = TextEditingController();
       final now = DateTime.now();
       _selectedDate = DateTime(now.year, now.month, now.day + 1, 9, 0);
-      _selectedAssigneeId = null; // Default null, nanti user pilih
+      _selectedAssigneeId = null; 
       _selectedPriority = TaskPriority.medium;
     }
   }
 
-  // ... (dispose dan _pickDateTime SAMA SEPERTI SEBELUMNYA)
   @override
   void dispose() {
     _titleController.dispose();
@@ -104,15 +105,27 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
 
     if (widget.taskToEdit != null) {
+      // MODE EDIT
       ref.read(createTaskNotifierProvider.notifier).editTask(task: taskData);
     } else {
+      // MODE CREATE
       ref.read(createTaskNotifierProvider.notifier).submitTask(task: taskData);
+      
+      // 👇 TRIGGER NOTIFIKASI KE ASSIGNEE
+      // Kita panggil manual via Repository
+      // Gunakan Future.delayed agar tidak menghambat UI pop
+      Future.delayed(Duration.zero, () {
+        ref.read(taskRepositoryProvider).notifyAssignee(
+          _selectedAssigneeId!, 
+          _titleController.text, 
+          "SyncTask Project" 
+        );
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Listen status untuk tutup halaman/tampilkan snackbar
     ref.listen<AsyncValue<void>>(createTaskNotifierProvider, (previous, next) {
       next.when(
         data: (_) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved successfully!'))); },
@@ -159,7 +172,6 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                     _buildDatePickerCard(),
                     const SizedBox(height: 20),
                     
-                    // 👇 DROPDOWN REAL MEMBERS
                     _buildLabel('Assigned To'),
                     _buildRealMemberDropdown(), 
                     
@@ -185,9 +197,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
   }
 
-  // 👇 FUNGSI BARU: MENGAMBIL DATA REAL DARI PROVIDER
   Widget _buildRealMemberDropdown() {
-    // Watch Provider Member
     final membersAsync = ref.watch(projectMembersProvider(widget.projectId));
 
     return membersAsync.when(
@@ -196,7 +206,6 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       data: (members) {
         if (members.isEmpty) return const Text("No members found inside this project.");
 
-        // Validasi: Jika assignee lama sudah tidak ada di list, reset jadi null
         if (_selectedAssigneeId != null && !members.any((m) => m.uid == _selectedAssigneeId)) {
           _selectedAssigneeId = null; 
         }
@@ -233,12 +242,9 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
   }
 
-  // ... Widget helpers lain (Label, InputDeco, PrioritySelector, DatePicker)
-  // Copy dari kode sebelumnya, hanya helper UI.
   Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)));
   InputDecoration _inputDeco(String hint) => InputDecoration(hintText: hint, filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none));
   
-  // (Priority Selector dan DatePickerCard sama persis dengan sebelumnya)
    Widget _buildPrioritySelector() {
     return Row(children: TaskPriority.values.map((p) => Expanded(child: GestureDetector(
       onTap: () => setState(() => _selectedPriority = p),

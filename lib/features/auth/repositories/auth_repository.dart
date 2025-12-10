@@ -89,4 +89,17 @@ class AuthRepository {
       throw Exception("Gagal mengambil data member: $e");
     }
   }
+
+  //Update FCM Token
+  Future<void> updateFcmToken(String userId, String token) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'fcmToken': token,
+        'lastActive': FieldValue.serverTimestamp(), // Opsional: untuk tahu kapan terakhir aktif
+      });
+    } catch (e) {
+      // Ignore error jika user belum ada doc-nya
+      print("Gagal update token: $e");
+    }
+  }
 }

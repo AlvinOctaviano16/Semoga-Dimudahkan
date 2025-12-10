@@ -1,123 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart'; // Opsional: Untuk format tanggal jika ada
-
-// Import Provider & Screen Create
+import '../../../core/constants/app_colors.dart';
+import '../../auth/providers/auth_controller.dart';
 import '../providers/project_provider.dart';
 import 'create_project_screen.dart';
 import 'project_detail_screen.dart';
+import '../../auth/screens/profile_screen.dart'; 
 
-// Kita pakai ConsumerWidget agar bisa mendengar (listen) perubahan data Provider
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. WATCH: Ini kuncinya. UI akan otomatis rebuild jika data di Firebase berubah.
     final projectListAsync = ref.watch(projectListProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("Dashboard Proyek"),
-        centerTitle: false, // Gaya Android modern (rata kiri)
+        title: const Text("My Projects", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.background,
+        elevation: 0,
         actions: [
+          // Tombol Profile
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {}, // Nanti untuk notifikasi
+            icon: const CircleAvatar(
+              radius: 14,
+              backgroundColor: AppColors.surface,
+              child: Icon(Icons.person, size: 18, color: Colors.white),
+            ),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+            },
           ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () {}, // Nanti untuk profil
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-
-      // 2. BODY: Menangani 3 Kondisi (Loading, Error, Data)
       body: projectListAsync.when(
-        // 1. KONDISI LOADING (Hanya muncul saat awal buka)
-        loading: () => const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text("Memuat proyek..."),
-            ],
-          ),
-        ),
-
-        // 2. KONDISI ERROR
-        error: (err, stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text('Terjadi error: $err', style: const TextStyle(color: Colors.red)),
-          ),
-        ),
-
-        // 3. KONDISI ADA DATA (Bisa Kosong, Bisa Ada Isinya)
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
         data: (projects) {
-          // A. JIKA KOSONG (Empty State)
           if (projects.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Ikon Besar
-                  Icon(Icons.folder_open, size: 80, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Belum ada proyek",
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 24),
-                  // Tombol ajakan membuat proyek
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CreateProjectScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text("Buat Proyek Pertama"),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                  )
-                ],
-              ),
-            );
+            return _buildEmptyState(context);
           }
-
-          // B. JIKA ADA DATA -> TAMPILKAN LIST
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: projects.length,
             itemBuilder: (context, index) {
               final project = projects[index];
               return Card(
-                elevation: 2,
+                color: AppColors.surface,
                 margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
                   leading: CircleAvatar(
-                    backgroundColor: Colors.blue[100],
+                    backgroundColor: AppColors.primary.withOpacity(0.2),
                     child: Text(
                       project.name.isNotEmpty ? project.name[0].toUpperCase() : '?',
-                      style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  title: Text(project.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(project.description),
-                  trailing: const Icon(Icons.chevron_right),
+                  title: Text(project.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    project.description, 
+                    maxLines: 2, 
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AppColors.textSecondary)
+                  ),
+                  trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
                   onTap: () {
+                    // Navigate to Detail
                     Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProjectDetailScreen(project: project),
-                      ),
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Membuka ${project.name}...")),
+                      context, 
+                      MaterialPageRoute(builder: (_) => ProjectDetailScreen(project: project))
                     );
                   },
                 ),
@@ -126,18 +81,40 @@ class DashboardScreen extends ConsumerWidget {
           );
         },
       ),
-
-      // 3. Tombol Tambah (Floating Action Button)
       floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
         onPressed: () {
-          // Navigasi ke Halaman Create
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CreateProjectScreen()),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateProjectScreen()));
         },
-        label: const Text("Add Project"),
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text("New Project", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.folder_open, size: 80, color: AppColors.surface.withOpacity(0.5)),
+          const SizedBox(height: 16),
+          const Text(
+            "No projects yet",
+            style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateProjectScreen()));
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.surface,
+              foregroundColor: AppColors.primary,
+            ),
+            child: const Text("Create First Project"),
+          )
+        ],
       ),
     );
   }

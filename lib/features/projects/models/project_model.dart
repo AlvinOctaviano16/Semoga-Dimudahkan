@@ -1,10 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ProjectModel {
   final String id;
   final String name;
   final String description;
   final String ownerId;
   final List<String> members;
-  final String inviteCode;
+  final String inviteCode; 
 
   ProjectModel({
     required this.id,

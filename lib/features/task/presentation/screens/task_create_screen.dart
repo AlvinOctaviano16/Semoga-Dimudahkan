@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart'; 
-import 'package:sync_task_app/core/constants/app_colors.dart';
-import 'package:sync_task_app/features/task/domain/task_model.dart';
-import 'package:sync_task_app/features/task/domain/task_provider.dart';
-import 'package:sync_task_app/features/task/domain/task_status.dart';
-import 'package:sync_task_app/features/task/domain/task_priority.dart';
 import 'package:uuid/uuid.dart';
-
-class TeamMember {
-  final String id;
-  final String name;
-  TeamMember(this.id, this.name);
-}
+import '../../../../core/constants/app_colors.dart';
+import '../../../auth/models/user_model.dart';
+import '../../../projects/providers/member_provider.dart'; // Import Provider Member Baru
+import '../../domain/task_model.dart';
+import '../../domain/task_provider.dart';
+import '../../domain/task_status.dart';
+import '../../domain/task_priority.dart';
 
 class CreateTaskScreen extends ConsumerStatefulWidget {
   final String projectId;
@@ -33,15 +29,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
   late TextEditingController _descController;
   late DateTime _selectedDate;
   String? _selectedAssigneeId;
-  
-  // State untuk Priority
   TaskPriority _selectedPriority = TaskPriority.medium;
-
-  final List<TeamMember> _teamMembers = [
-    TeamMember('user-alvin', 'Alvin (Saya)'),
-    TeamMember('user-farid', 'Farid'),
-    TeamMember('user-budi', 'Budi'),
-  ];
 
   @override
   void initState() {
@@ -57,11 +45,12 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       _descController = TextEditingController();
       final now = DateTime.now();
       _selectedDate = DateTime(now.year, now.month, now.day + 1, 9, 0);
-      _selectedAssigneeId = _teamMembers.first.id;
+      _selectedAssigneeId = null; // Default null, nanti user pilih
       _selectedPriority = TaskPriority.medium;
     }
   }
 
+  // ... (dispose dan _pickDateTime SAMA SEPERTI SEBELUMNYA)
   @override
   void dispose() {
     _titleController.dispose();
@@ -75,52 +64,27 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime.now(), 
       lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primaryBlue),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => Theme(data: ThemeData.light(), child: child!),
     );
-
     if (pickedDate == null) return;
     if (!mounted) return;
-
     final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_selectedDate),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primaryBlue),
-          ),
-          child: child!,
-        );
-      },
     );
-
     if (pickedTime == null) return;
-
     setState(() {
-      _selectedDate = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        pickedTime.hour,
-        pickedTime.minute,
-      );
+      _selectedDate = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
     });
   }
 
   void _submitTask() {
     if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Judul wajib diisi')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Title is required')));
       return;
     }
     if (_selectedAssigneeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih anggota tim')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please assign to a member')));
       return;
     }
 
@@ -148,12 +112,10 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen status untuk tutup halaman/tampilkan snackbar
     ref.listen<AsyncValue<void>>(createTaskNotifierProvider, (previous, next) {
       next.when(
-        data: (_) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil disimpan!')));
-        },
+        data: (_) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved successfully!'))); },
         error: (e, s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'))),
         loading: () {},
       );
@@ -165,18 +127,10 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(
-          isEditMode ? 'Edit Task' : 'Add Task',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText),
-        ),
+        title: Text(isEditMode ? 'Edit Task' : 'Add Task', style: const TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: AppColors.primaryText),
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: SafeArea(
         child: Column(
@@ -187,76 +141,41 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. INPUT JUDUL (Besar & Bersih)
                     _buildLabel('What needs to be done?'),
-                    TextField(
-                      controller: _titleController,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                      decoration: _modernInputDecoration('Example : Redesign Homepage'),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 2. INPUT DESKRIPSI
-                    _buildLabel('Detail / Description'),
-                    TextField(
-                      controller: _descController,
-                      maxLines: 4,
-                      decoration: _modernInputDecoration('Add detail notes...'),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 3. PRIORITY SELECTOR (CHIPS)
+                    TextField(controller: _titleController, 
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
+                      decoration: _inputDeco('Example: Fix Bug')),
+                    const SizedBox(height: 20),
+                    _buildLabel('Description'),
+                    TextField(controller: _descController, 
+                      maxLines: 3, 
+                      style: const TextStyle(color: Colors.black, fontSize: 16),
+                      decoration: _inputDeco('Details...')),
+                    const SizedBox(height: 20),
                     _buildLabel('Priority'),
                     _buildPrioritySelector(),
-                    const SizedBox(height: 24),
-
-                    // 4. DATE PICKER (CARD STYLE)
+                    const SizedBox(height: 20),
                     _buildLabel('Deadline'),
                     _buildDatePickerCard(),
-                    const SizedBox(height: 24),
-
-                    // 5. ASSIGNEE DROPDOWN
-                    _buildLabel('Assigned To'),
-                    _buildAssigneeDropdown(),
+                    const SizedBox(height: 20),
                     
-                    const SizedBox(height: 40), // Ruang bawah
+                    // 👇 DROPDOWN REAL MEMBERS
+                    _buildLabel('Assigned To'),
+                    _buildRealMemberDropdown(), 
+                    
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
             ),
-            
-            // 6. TOMBOL SIMPAN (FIXED DI BAWAH)
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -4),
-                  )
-                ]
-              ),
               child: SizedBox(
-                width: double.infinity,
-                height: 55,
+                width: double.infinity, height: 50,
                 child: ElevatedButton(
                   onPressed: isLoading ? null : _submitTask,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          isEditMode ? "Save Changes" : "Create Task",
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
-                        ),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  child: isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(isEditMode ? "Save" : "Create Task", style: const TextStyle(color: Colors.white)),
                 ),
               ),
             ),
@@ -266,180 +185,78 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
   }
 
-  // --- WIDGET HELPERS ---
+  // 👇 FUNGSI BARU: MENGAMBIL DATA REAL DARI PROVIDER
+  Widget _buildRealMemberDropdown() {
+    // Watch Provider Member
+    final membersAsync = ref.watch(projectMembersProvider(widget.projectId));
 
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey,
-        ),
-      ),
-    );
-  }
+    return membersAsync.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (err, stack) => Text('Error loading members: $err', style: const TextStyle(color: Colors.red)),
+      data: (members) {
+        if (members.isEmpty) return const Text("No members found inside this project.");
 
-  InputDecoration _modernInputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.normal),
-      filled: true,
-      fillColor: Colors.grey[50], // Background abu-abu sangat muda
-      contentPadding: const EdgeInsets.all(20),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none, // Hilangkan border garis
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
-      ),
-    );
-  }
-
-  // Widget Pemilih Prioritas (Horizontal Chips)
-  Widget _buildPrioritySelector() {
-    return Row(
-      children: TaskPriority.values.map((priority) {
-        final isSelected = _selectedPriority == priority;
-        Color color;
-        switch (priority) {
-          case TaskPriority.high: color = AppColors.highPriority; break;
-          case TaskPriority.medium: color = AppColors.mediumPriority; break;
-          case TaskPriority.low: color = AppColors.lowPriority; break;
+        // Validasi: Jika assignee lama sudah tidak ada di list, reset jadi null
+        if (_selectedAssigneeId != null && !members.any((m) => m.uid == _selectedAssigneeId)) {
+          _selectedAssigneeId = null; 
         }
 
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => setState(() => _selectedPriority = priority),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: isSelected ? color.withOpacity(0.1) : Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected ? color : Colors.transparent,
-                  width: 1.5,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.flag_rounded, 
-                    size: 20, 
-                    color: isSelected ? color : Colors.grey[400]
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12)),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedAssigneeId,
+              hint: const Text("Select Member"),
+              isExpanded: true,
+              items: members.map((user) {
+                return DropdownMenuItem(
+                  value: user.uid,
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 12, 
+                        backgroundColor: AppColors.primary,
+                        child: Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(user.name),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    priority.displayValue,
-                    style: TextStyle(
-                      color: isSelected ? color : Colors.grey[500],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              }).toList(),
+              onChanged: (val) => setState(() => _selectedAssigneeId = val),
             ),
           ),
         );
-      }).toList(),
+      },
     );
   }
 
-  // Widget Kartu Tanggal
-  Widget _buildDatePickerCard() {
-    final dateStr = DateFormat('EEE, dd MMM yyyy').format(_selectedDate);
-    final timeStr = DateFormat('HH:mm').format(_selectedDate);
+  // ... Widget helpers lain (Label, InputDeco, PrioritySelector, DatePicker)
+  // Copy dari kode sebelumnya, hanya helper UI.
+  Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)));
+  InputDecoration _inputDeco(String hint) => InputDecoration(hintText: hint, filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none));
+  
+  // (Priority Selector dan DatePickerCard sama persis dengan sebelumnya)
+   Widget _buildPrioritySelector() {
+    return Row(children: TaskPriority.values.map((p) => Expanded(child: GestureDetector(
+      onTap: () => setState(() => _selectedPriority = p),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8), padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: _selectedPriority == p ? AppColors.primary.withOpacity(0.1) : Colors.grey[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: _selectedPriority == p ? AppColors.primary : Colors.transparent)),
+        child: Center(child: Text(p.displayValue, style: TextStyle(color: _selectedPriority == p ? AppColors.primary : Colors.grey))),
+      ),
+    ))).toList());
+  }
 
+  Widget _buildDatePickerCard() {
     return InkWell(
       onTap: _pickDateTime,
-      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.primaryBlue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.calendar_month_rounded, color: AppColors.primaryBlue),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dateStr,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primaryText),
-                ),
-                Text(
-                  "Pukul $timeStr",
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-            const Spacer(),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Widget Dropdown Assignee
-  Widget _buildAssigneeDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.transparent), // Transparan agar senada
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedAssigneeId,
-          hint: const Text("Pilih Anggota Tim"),
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          items: _teamMembers.map((member) {
-            return DropdownMenuItem(
-              value: member.id,
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 14, 
-                    backgroundColor: AppColors.primaryBlue,
-                    child: Text(member.name[0], style: const TextStyle(fontSize: 12, color: Colors.white)),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(member.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                ],
-              ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            setState(() {
-              _selectedAssigneeId = value;
-            });
-          },
-        ),
+        decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12)),
+        child: Row(children: [const Icon(Icons.calendar_today, color: AppColors.primary), const SizedBox(width: 10), Text(DateFormat('dd MMM yyyy, HH:mm').format(_selectedDate))]),
       ),
     );
   }

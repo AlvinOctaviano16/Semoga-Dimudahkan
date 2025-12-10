@@ -1,26 +1,27 @@
+import 'dart:convert';
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 
-class StorageRepository{
-  final FirebaseStorage _storage;
+class StorageRepository {
+  // Constructor kosong karena tidak butuh FirebaseStorage
+  StorageRepository();
 
-  StorageRepository(this._storage);
-
-  Future<String> uploadImageProof(File file, String taskId) async{
-    final fileName='proofs/$taskId/${const Uuid().v4()}.jpg';
-    final ref=_storage.ref().child(fileName);
-
-    final uploadTask=ref.putFile(file);
-    final snapshot=await uploadTask.whenComplete(() {});
-
-    final downloadUrl= await snapshot.ref.getDownloadURL();
-    return downloadUrl;
+  Future<String> uploadImageProof(File file, String taskId) async {
+    try {
+      // 1. Baca file gambar sebagai bytes
+      final bytes = await file.readAsBytes();
+      
+      // 2. Ubah menjadi String Base64
+      String base64Image = base64Encode(bytes);
+      
+      // 3. Kembalikan string tersebut (ini yang akan disimpan di 'proofUrl')
+      return base64Image;
+    } catch (e) {
+      throw Exception("Gagal mengkonversi gambar: $e");
+    }
   }
 }
 
 final storageRepositoryProvider = Provider<StorageRepository>((ref) {
-  return StorageRepository(FirebaseStorage.instance);
+  return StorageRepository();
 });
-

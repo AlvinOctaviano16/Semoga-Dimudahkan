@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user_model.dart';
 
 // Provider Repository
 final authRepositoryProvider = Provider((ref) => AuthRepository(
@@ -66,6 +67,26 @@ class AuthRepository {
       await _firestore.collection('users').doc(user.uid).update({
         'name': name,
       });
+    }
+  }
+
+  // Get Multiple Users by IDs (for members)
+  Future<List<UserModel>> getUsersByIds(List<String> userIds) async {
+    if (userIds.isEmpty) return [];
+
+    try {
+      // Karena Firestore 'whereIn' maksimal 10, kita pakai cara aman:
+      // Ambil satu-satu secara paralel (Future.wait).
+      // Ini lebih aman untuk skala kecil/menengah.
+      final futures = userIds.map((uid) => _firestore.collection('users').doc(uid).get());
+      final snapshots = await Future.wait(futures);
+
+      return snapshots
+          .where((doc) => doc.exists) // Pastikan user masih ada
+          .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception("Gagal mengambil data member: $e");
     }
   }
 }

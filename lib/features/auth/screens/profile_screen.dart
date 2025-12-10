@@ -59,9 +59,12 @@ class ProfileScreen extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      ref.read(authControllerProvider.notifier).logout();
-                      Navigator.pop(context); // Tutup Profile Screen
+                    onPressed: () async{
+                      await ref.read(authControllerProvider.notifier).logout();
+
+                      if (context.mounted) {
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                      }
                     },
                     icon: const Icon(Icons.logout, color: Colors.white),
                     label: const Text("Log Out", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

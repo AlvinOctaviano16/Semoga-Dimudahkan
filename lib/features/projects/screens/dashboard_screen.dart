@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_controller.dart';
+import '../../auth/screens/profile_screen.dart';
 import '../providers/project_provider.dart';
 import 'create_project_screen.dart';
-import 'project_detail_screen.dart';
-import '../../auth/screens/profile_screen.dart'; 
+import 'project_detail_screen.dart'; 
+import '../../task/presentation/screens/task_list_screen.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // Butuh UID user
+import '../repositories/project_repository.dart'; // Butuh akses fungsi join
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -67,27 +70,60 @@ class DashboardScreen extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: AppColors.textSecondary)
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                  
+                  // 👇 BAGIAN UTAMA: Navigasi ke Task List
                   onTap: () {
-                    // Navigate to Detail
                     Navigator.push(
                       context, 
-                      MaterialPageRoute(builder: (_) => ProjectDetailScreen(project: project))
+                      MaterialPageRoute(
+                        // Update: kirim full project model
+                        builder: (_) => TaskListScreen(project: project),
+                      )
                     );
                   },
+                  
+                  // Tombol Info kecil untuk lihat Detail Project (Kode Undangan/Delete)
+                  trailing: IconButton(
+                    icon: const Icon(Icons.info_outline, color: AppColors.textSecondary),
+                    onPressed: () {
+                       Navigator.push(
+                        context, 
+                        MaterialPageRoute(
+                          builder: (_) => ProjectDetailScreen(project: project),
+                        )
+                      );
+                    },
+                  ),
                 ),
               );
             },
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primary,
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateProjectScreen()));
-        },
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("New Project", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Tombol Join Project
+          FloatingActionButton.small(
+            heroTag: "join_btn", // Wajib beda tag
+            backgroundColor: AppColors.surface,
+            onPressed: () => _showJoinDialog(context, ref),
+            child: const Icon(Icons.link, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+
+          // Tombol Create Project
+          FloatingActionButton.extended(
+            heroTag: "create_btn",
+            backgroundColor: AppColors.primary,
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateProjectScreen()));
+            },
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text("New Project", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
@@ -114,6 +150,73 @@ class DashboardScreen extends ConsumerWidget {
             ),
             child: const Text("Create First Project"),
           )
+        ],
+      ),
+    );
+  }
+
+  // UI Dialog untuk input kode undangan
+  void _showJoinDialog(BuildContext context, WidgetRef ref) {
+    final codeController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text("Join Project", style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Enter the invite code shared by your team lead.", style: TextStyle(color: Colors.grey, fontSize: 14)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: "Ex: 829103",
+                hintStyle: TextStyle(color: Colors.grey[600]),
+                filled: true,
+                fillColor: Colors.black26,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.isEmpty) return;
+
+              try {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return;
+
+                // Panggil Logic Join
+                await ref.read(projectRepositoryProvider).joinProject(
+                  inviteCode: code, 
+                  userId: user.uid
+                );
+
+                if (ctx.mounted) {
+                  Navigator.pop(ctx); // Tutup Dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Successfully joined!"), backgroundColor: Colors.green),
+                  );
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  Navigator.pop(ctx); // Tutup Dialog dulu biar enak
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            }, 
+            child: const Text("Join", style: TextStyle(color: Colors.white))
+          ),
         ],
       ),
     );

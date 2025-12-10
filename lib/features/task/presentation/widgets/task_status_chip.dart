@@ -1,42 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:sync_task_app/core/constants/app_colors.dart';
-import 'package:sync_task_app/features/task/domain/task_status.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../domain/task_status.dart';
 
-class TaskStatusChip extends StatelessWidget{
+class TaskStatusChip extends StatelessWidget {
   final TaskStatus status;
-
-  const TaskStatusChip({super.key,required this.status});
+  const TaskStatusChip({super.key, required this.status});
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     Color backgroundColor;
-    Color textColor=Colors.white;
+    Color textColor = Colors.white;
 
-    //Status condition 
-    switch(status){
+    switch (status) {
       case TaskStatus.done:
-        backgroundColor=AppColors.completedGreen;
-        textColor=AppColors.backgroundLight;
+        backgroundColor = AppColors.completedGreen;
         break;
       case TaskStatus.inProgress:
-        backgroundColor=AppColors.mediumPriority;
+        backgroundColor = AppColors.mediumPriority;
         break;
       case TaskStatus.todo:
-        backgroundColor=AppColors.lowPriority;
+        backgroundColor = AppColors.lowPriority; // Atau warna lain
     }
-     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 4),
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color:backgroundColor,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
       ),
-      child:Text(
+      child: Text(
         status.displayValue.toUpperCase(),
-        style:TextStyle(
-          color:textColor,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }

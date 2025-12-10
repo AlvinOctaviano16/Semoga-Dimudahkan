@@ -3,18 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart'; 
-import 'package:sync_task_app/core/constants/app_colors.dart';
-import 'package:sync_task_app/features/task/data/storage_service.dart';
-import 'package:sync_task_app/features/task/data/task_repository.dart';
-import 'package:sync_task_app/features/task/domain/task_model.dart';
-import 'package:sync_task_app/features/task/presentation/widgets/task_status_chip.dart';
-import 'package:sync_task_app/features/task/domain/task_priority_chip.dart'; 
-import 'package:sync_task_app/features/task/presentation/screens/task_create_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../../../core/constants/app_colors.dart';
+import '../../data/storage_service.dart';
+import '../../data/task_repository.dart';
+import '../../domain/task_model.dart';
+import '../../domain/task_status.dart'; 
+import '../widgets/task_status_chip.dart';
+import '../widgets/task_priority_chip.dart'; 
+import 'task_create_screen.dart';
+import 'dart:convert';
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
   final TaskModel task;
+  final String projectOwnerId;
 
-  const TaskDetailScreen({super.key, required this.task});
+  const TaskDetailScreen({
+    super.key, 
+    required this.task,
+    required this.projectOwnerId,
+  });
 
   @override
   ConsumerState<TaskDetailScreen> createState() => _TaskDetailScreenState();
@@ -55,7 +64,11 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
     if (source == null) return;
 
-    final XFile? image = await picker.pickImage(source: source);
+    final XFile? image = await picker.pickImage(
+      source: source,
+      imageQuality: 25, // Kompresi kualitas
+      maxWidth: 800,   // Resize lebar maksimum
+      );
     
     if (image != null) {
       if (!mounted) return;
@@ -64,11 +77,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: const Text("Tambahkan Catatan"),
+            title: const Text("Add a comment"),
             content: TextField(
               controller: _commentController,
+              style: const TextStyle(color: Colors.black),
               decoration: InputDecoration(
-                hintText: "Contoh: Sudah selesai, tapi layout agak geser",
+                hintText: "Example: Done, but i think it can be improved",
+                hintStyle: const TextStyle(color: Colors.grey),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: Colors.grey[50],
@@ -78,15 +93,15 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context), 
-                child: const Text("Batal", style: TextStyle(color: Colors.grey)),
+                child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, _commentController.text),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBlue,
+                  backgroundColor: AppColors.primary, // Sesuaikan warna
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text("Kirim", style: TextStyle(color: Colors.white)),
+                child: const Text("Send", style: TextStyle(color: Colors.white)),
               ),
             ],
           );
@@ -99,10 +114,12 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       
       try {
         final file = File(image.path);
+        // Upload gambar ke Storage
         final downloadUrl = await ref
             .read(storageRepositoryProvider)
             .uploadImageProof(file, widget.task.id);
 
+        // Update Data Task di Firestore
         await ref.read(taskRepositoryProvider).submitTaskCompletion(
           taskId: widget.task.id,
           proofUrl: downloadUrl,
@@ -118,7 +135,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal: $e')),
+            SnackBar(content: Text('Failed: $e')),
           );
         }
       } finally {
@@ -127,14 +144,42 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     }
   }
 
+  // Logic Delete (Hanya Admin)
+  Future<void> _deleteTask() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Task?"),
+        content: const Text("This action cannot be undone."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text("Delete", style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(taskRepositoryProvider).deleteTask(widget.task.id);
+      if (mounted) Navigator.pop(context); // Kembali ke list
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Format Waktu: "Wednesday, 10 Dec 2025 • 14:30"
+    // Format Waktu
     final dateFormatted = DateFormat('EEEE, d MMM yyyy • HH:mm').format(widget.task.dueDate);
     
     final completedFormatted = widget.task.completedAt != null
         ? DateFormat('d MMM yyyy, HH:mm').format(widget.task.completedAt!)
         : '-';
+
+    // Define Roles (Siapa yang Login?)
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final bool isAdmin = currentUser != null && currentUser.uid == widget.projectOwnerId;
+    final bool isAssignee = currentUser != null && currentUser.uid == widget.task.assignedToId;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -148,21 +193,28 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: AppColors.primaryText),
         actions: [
-          // Tombol Edit hanya Icon
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CreateTaskScreen(
-                    projectId: widget.task.projectId, 
-                    taskToEdit: widget.task,
+          // Tombol Edit: Hanya untuk Admin
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateTaskScreen(
+                      projectId: widget.task.projectId, 
+                      taskToEdit: widget.task,
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
+          // Tombol Delete: Hanya untuk Admin
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              onPressed: _deleteTask,
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -180,7 +232,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 2. JUDUL TUGAS (Besar & Bold)
+            // 2. JUDUL TUGAS
             Text(
               widget.task.title,
               style: const TextStyle(
@@ -192,7 +244,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 3. DEADLINE (Dengan Ikon)
+            // 3. DEADLINE
             Row(
               children: [
                 Container(
@@ -230,7 +282,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.grey[50], // Latar belakang abu-abu lembut
+                color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
@@ -246,16 +298,18 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             ),
             const SizedBox(height: 30),
 
-            // 5. BUKTI PENGERJAAN
-            _buildSectionLabel('Proof'),
+            // 5. BUKTI PENGERJAAN (PROOF OF WORK)
+            _buildSectionLabel('Proof of Work'),
             
+            // --- LOGIC TAMPILAN (FIXED) ---
+            
+            // KONDISI A: Sudah Ada Bukti (Berarti Selesai)
             if (widget.task.proofUrl != null) ...[
-              // -- STATE: SUDAH SELESAI --
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.green[50], // Hijau lembut
+                  color: Colors.green[50],
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.green[100]!),
                 ),
@@ -268,7 +322,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Tugas diselesaikan pada $completedFormatted',
+                            'Task Completed on $completedFormatted',
                             style: TextStyle(
                               color: Colors.green[800],
                               fontWeight: FontWeight.bold,
@@ -300,79 +354,100 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
               // Gambar Bukti
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  widget.task.proofUrl!,
-                  height: 220,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (ctx, err, stack) => 
-                      Container(height: 220, color: Colors.grey[200], child: const Center(child: Text("Gagal memuat gambar"))),
-                ),
+                child: _buildImageDisplay(widget.task.proofUrl!),
               ),
               
-              const SizedBox(height: 20),
-              
-              // Tombol Revisi (Outlined)
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: OutlinedButton.icon(
-                  onPressed: _isUploading ? null : _uploadProof,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Revision / re-upload'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primaryText,
-                    side: const BorderSide(color: Colors.grey),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              // Tombol Revisi (Hanya Assignee yang bisa lihat)
+              if (isAssignee) ...[
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: _isUploading ? null : _uploadProof,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Revision / re-upload'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryText,
+                      side: const BorderSide(color: Colors.grey),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
-              ),
-            ] else ...[
-              // -- STATE: BELUM SELESAI (UPLOAD CARD) --
-              GestureDetector(
-                onTap: _isUploading ? null : _uploadProof,
-                child: Container(
-                  height: 180,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey[300]!, width: 2), // Efek border tebal
-                    // Bisa ganti border.all dengan DottedBorder jika pakai package external
-                  ),
-                  child: _isUploading 
-                      ? const Center(child: CircularProgressIndicator())
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-                                ]
+              ],
+            ] 
+            
+            // KONDISI B: Belum Ada Bukti (Belum Selesai)
+            else ...[ 
+              if (isAssignee) ...[
+                // B1: Saya Assignee -> Tampilkan Kartu Upload
+                GestureDetector(
+                  onTap: _isUploading ? null : _uploadProof,
+                  child: Container(
+                    height: 180,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey[300]!, width: 2),
+                    ),
+                    child: _isUploading 
+                        ? const Center(child: CircularProgressIndicator())
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                                  ]
+                                ),
+                                child: const Icon(Icons.cloud_upload_rounded, size: 32, color: AppColors.primary), // Gunakan AppColors.primary atau primaryBlue
                               ),
-                              child: const Icon(Icons.cloud_upload_rounded, size: 32, color: AppColors.primaryBlue),
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Upload Proof of Work',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Tap to take a photo from the gallery',
-                              style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                            ),
-                          ],
-                        ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Upload Proof of Work',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap to take a photo from the gallery',
+                                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
-              ),
+              ] else ...[
+                // B2: Saya Bukan Assignee (Admin/Member Lain) -> Tampilkan Pesan Tunggu
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.lock_outline_rounded, size: 40, color: Colors.grey),
+                      const SizedBox(width: 12),
+                      Text(
+                        isAdmin
+                            ? "Waiting for assignee to complete this task."
+                            : "This task is assigned to someone else.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
             
-            // Spacer bawah agar tidak mentok
             const SizedBox(height: 40),
           ],
         ),
@@ -380,7 +455,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     );
   }
 
-  // Helper untuk Label Section
+  // Helper Widget
   Widget _buildSectionLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -394,5 +469,40 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         ),
       ),
     );
+  }
+
+  // Helper untuk menentukan cara menampilkan gambar
+  Widget _buildImageDisplay(String imageString) {
+    // 1. Jika URL Link (https://...)
+    if (imageString.startsWith('http')) {
+      return Image.network(
+        imageString,
+        height: 220,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => Container(
+            height: 220,
+            color: Colors.grey[200],
+            child: const Center(child: Text("Failed to load link"))),
+      );
+    } 
+    
+    // 2. Jika Base64 String (Kode panjang)
+    try {
+      // Kita perlu import 'dart:convert'; di paling atas file ini
+      final decodedBytes = base64Decode(imageString);
+      return Image.memory(
+        decodedBytes,
+        height: 220,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => Container(
+            height: 220,
+            color: Colors.grey[200],
+            child: const Center(child: Text("Failed to Load Base64"))),
+      );
+    } catch (e) {
+      return Container(height: 220, color: Colors.grey[200], child: const Center(child: Text("Format Salah")));
+    }
   }
 }

@@ -2,19 +2,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../repositories/project_repository.dart';
 import '../models/project_model.dart';
+// Import Auth Provider untuk deteksi perubahan user
+import '../../auth/providers/user_provider.dart'; 
 
-// Stream Provider to listen to the projects of the CURRENT user
-final projectListProvider = StreamProvider<List<ProjectModel>>((ref) {
-  final repo = ref.watch(projectRepositoryProvider);
-  
-  // 1. Get Real User
-  final user = FirebaseAuth.instance.currentUser;
+final projectListProvider = StreamProvider.autoDispose<List<ProjectModel>>((ref) {
+  // 1. Pantau Status Auth
+  // Setiap kali user logout/login, baris ini akan memaksa provider refresh!
+  final authState = ref.watch(authStateProvider);
 
-  // 2. Safety Check: If not logged in, return empty list
-  if (user == null) {
-    return Stream.value([]);
-  }
-
-  // 3. Fetch Real Data
-  return repo.getUserProjects(user.uid);
+  return authState.when(
+    data: (user) {
+      if (user == null) return const Stream.empty();
+      
+      // 2. Ambil data project milik USER YANG BARU LOGIN
+      final repo = ref.watch(projectRepositoryProvider);
+      return repo.getUserProjects(user.uid);
+    },
+    loading: () => const Stream.empty(),
+    error: (_, __) => const Stream.empty(),
+  );
 });

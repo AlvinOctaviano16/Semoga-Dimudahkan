@@ -5,15 +5,6 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
-///
-/// Example:
-/// ```dart
-/// import 'firebase_options.dart';
-/// // ...
-/// await Firebase.initializeApp(
-///   options: DefaultFirebaseOptions.currentPlatform,
-/// );
-/// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -50,25 +41,34 @@ class DefaultFirebaseOptions {
     apiKey: 'AIzaSyBHqOZZU-9Hklp9K-pk3MeU5WLV3frI5wU',
     appId: '1:894983013536:web:5b9cad54325d10e80f35c5',
     messagingSenderId: '894983013536',
-    projectId: 'sync-task-app',
-    authDomain: 'sync-task-app.firebaseapp.com',
-    storageBucket: 'sync-task-app.firebasestorage.app',
+    
+    // --- BAGIAN INI SUDAH DIPERBARUI ---
+    projectId: 'sync-task-app-7c0b0', 
+    authDomain: 'sync-task-app-7c0b0.firebaseapp.com',
+    storageBucket: 'sync-task-app-7c0b0.firebasestorage.app',
+    // -----------------------------------
   );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyC9Xb18Htr77qz34dlL_kNcF-_1LQ6n-mM',
     appId: '1:894983013536:android:e1d297af7973dd200f35c5',
     messagingSenderId: '894983013536',
-    projectId: 'sync-task-app',
-    storageBucket: 'sync-task-app.firebasestorage.app',
+    
+    // --- BAGIAN INI SUDAH DIPERBARUI ---
+    projectId: 'sync-task-app-7c0b0',
+    storageBucket: 'sync-task-app-7c0b0.firebasestorage.app',
+    // -----------------------------------
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDj3ms5e3rQ1ElvtiT0aswK3Ccc4dV-dzs',
     appId: '1:894983013536:ios:35f382b4decd6f2d0f35c5',
     messagingSenderId: '894983013536',
-    projectId: 'sync-task-app',
-    storageBucket: 'sync-task-app.firebasestorage.app',
+    
+    // --- BAGIAN INI SUDAH DIPERBARUI ---
+    projectId: 'sync-task-app-7c0b0',
+    storageBucket: 'sync-task-app-7c0b0.firebasestorage.app',
+    // -----------------------------------
     iosBundleId: 'com.example.syncTaskApp',
   );
 }

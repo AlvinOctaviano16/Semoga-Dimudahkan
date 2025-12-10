@@ -145,6 +145,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
                 IconButton.filled(
                   color: Theme.of(context).colorScheme.onPrimary,
+                  padding: const EdgeInsets.only(left: 4.0),
                   icon: const Icon(Icons.send_rounded),
                   onPressed: _sendMessage,
                 ),

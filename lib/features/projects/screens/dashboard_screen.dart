@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_controller.dart';
 import '../../auth/screens/profile_screen.dart';
 import '../providers/project_provider.dart';
+import '../repositories/project_repository.dart';
 import 'create_project_screen.dart';
 import 'project_detail_screen.dart'; 
-import '../../task/presentation/screens/task_list_screen.dart'; 
-import 'package:firebase_auth/firebase_auth.dart'; // Butuh UID user
-import '../repositories/project_repository.dart'; // Butuh akses fungsi join
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -24,7 +23,6 @@ class DashboardScreen extends ConsumerWidget {
         backgroundColor: AppColors.background,
         elevation: 0,
         actions: [
-          // Tombol Profile
           IconButton(
             icon: const CircleAvatar(
               radius: 14,
@@ -71,29 +69,18 @@ class DashboardScreen extends ConsumerWidget {
                     style: const TextStyle(color: AppColors.textSecondary)
                   ),
                   
-                  // 👇 BAGIAN UTAMA: Navigasi ke Task List
+                  // 👇 REVISI: Klik Project -> Masuk ke DETAIL (Lobi Utama)
                   onTap: () {
                     Navigator.push(
                       context, 
                       MaterialPageRoute(
-                        // Update: kirim full project model
-                        builder: (_) => TaskListScreen(project: project),
+                        builder: (_) => ProjectDetailScreen(project: project),
                       )
                     );
                   },
                   
-                  // Tombol Info kecil untuk lihat Detail Project (Kode Undangan/Delete)
-                  trailing: IconButton(
-                    icon: const Icon(Icons.info_outline, color: AppColors.textSecondary),
-                    onPressed: () {
-                       Navigator.push(
-                        context, 
-                        MaterialPageRoute(
-                          builder: (_) => ProjectDetailScreen(project: project),
-                        )
-                      );
-                    },
-                  ),
+                  // 👇 REVISI: Ganti Info Icon jadi Panah (Indikasi masuk)
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textSecondary),
                 ),
               );
             },
@@ -104,16 +91,13 @@ class DashboardScreen extends ConsumerWidget {
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // Tombol Join Project
           FloatingActionButton.small(
-            heroTag: "join_btn", // Wajib beda tag
+            heroTag: "join_btn",
             backgroundColor: AppColors.surface,
             onPressed: () => _showJoinDialog(context, ref),
             child: const Icon(Icons.link, color: Colors.white),
           ),
           const SizedBox(height: 16),
-
-          // Tombol Create Project
           FloatingActionButton.extended(
             heroTag: "create_btn",
             backgroundColor: AppColors.primary,
@@ -155,7 +139,6 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  // UI Dialog untuk input kode undangan
   void _showJoinDialog(BuildContext context, WidgetRef ref) {
     final codeController = TextEditingController();
     
@@ -194,21 +177,20 @@ class DashboardScreen extends ConsumerWidget {
                 final user = FirebaseAuth.instance.currentUser;
                 if (user == null) return;
 
-                // Panggil Logic Join
                 await ref.read(projectRepositoryProvider).joinProject(
                   inviteCode: code, 
                   userId: user.uid
                 );
 
                 if (ctx.mounted) {
-                  Navigator.pop(ctx); // Tutup Dialog
+                  Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Successfully joined!"), backgroundColor: Colors.green),
                   );
                 }
               } catch (e) {
                 if (ctx.mounted) {
-                  Navigator.pop(ctx); // Tutup Dialog dulu biar enak
+                  Navigator.pop(ctx); 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
                   );

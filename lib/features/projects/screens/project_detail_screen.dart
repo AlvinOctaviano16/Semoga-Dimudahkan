@@ -6,15 +6,16 @@ import '../../../core/constants/app_colors.dart';
 import '../../auth/models/user_model.dart';
 import '../models/project_model.dart';
 import '../repositories/project_repository.dart';
-import '../providers/member_provider.dart'; // Import Provider Member Realtime
+import '../providers/member_provider.dart'; 
 import 'create_project_screen.dart';
+import '../../chat/presentation/chat_screen.dart';
+import '../../task/presentation/screens/task_list_screen.dart';
 
 class ProjectDetailScreen extends ConsumerWidget {
   final ProjectModel project;
 
   const ProjectDetailScreen({super.key, required this.project});
 
-  // Logic Hapus Member
   Future<void> _removeMember(BuildContext context, WidgetRef ref, String memberId, String memberName) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -50,7 +51,6 @@ class ProjectDetailScreen extends ConsumerWidget {
     }
   }
 
-  // Logic Hapus Project (Admin Only)
   Future<void> _deleteProject(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -71,17 +71,15 @@ class ProjectDetailScreen extends ConsumerWidget {
       await ref.read(projectRepositoryProvider).deleteProject(project.id);
       if (context.mounted) {
         Navigator.pop(context); // Kembali ke Dashboard
-        Navigator.pop(context); // Jika tumpukan navigasi dalam
+        Navigator.pop(context); 
       }
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. Ambil Data Member Realtime
     final membersAsync = ref.watch(projectMembersProvider(project.id));
     
-    // 2. Cek Admin
     final currentUser = FirebaseAuth.instance.currentUser;
     final bool isAdmin = currentUser != null && currentUser.uid == project.ownerId;
 
@@ -93,6 +91,17 @@ class ProjectDetailScreen extends ConsumerWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline, color: AppColors.primary),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => ChatScreen(
+                  projectId: project.id,
+                  projectName: project.name,
+                ),
+              ));
+            },
+          ),
           if (isAdmin)
             IconButton(
               icon: const Icon(Icons.edit, color: AppColors.primary),
@@ -114,14 +123,37 @@ class ProjectDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- HEADER ---
             Text(project.name, style: const TextStyle(color: Colors.black, fontSize: 26, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Text(project.description, style: const TextStyle(color: Colors.grey, fontSize: 16, height: 1.5)),
             
             const SizedBox(height: 30),
+
+            // 👇 REVISI: TOMBOL MENUJU TASK LIST
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => TaskListScreen(project: project) 
+                  ));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                ),
+                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                label: const Text(
+                  "View Tasks & Board", 
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                ),
+              ),
+            ),
             
-            // --- INVITE CODE ---
+            const SizedBox(height: 30),
+            
             _buildSectionTitle("Invite Code"),
             InkWell(
               onTap: () {
@@ -148,7 +180,6 @@ class ProjectDetailScreen extends ConsumerWidget {
 
             const SizedBox(height: 30),
 
-            // --- MEMBER LIST ---
             _buildSectionTitle("Team Members"),
             
             membersAsync.when(
@@ -183,9 +214,6 @@ class ProjectDetailScreen extends ConsumerWidget {
                         ],
                       ),
                       subtitle: Text(user.email),
-                      
-                      // LOGIKA HAPUS MEMBER:
-                      // Muncul jika: Saya Admin DAN Target bukan Saya sendiri
                       trailing: (isAdmin && !isMe) 
                         ? IconButton(
                             icon: const Icon(Icons.remove_circle_outline, color: Colors.red),

@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../auth/models/user_model.dart'; // Import Model User
+import '../../../auth/models/user_model.dart'; 
 import '../../../auth/screens/profile_screen.dart';
 import '../../../projects/models/project_model.dart';
-import '../../../projects/providers/member_provider.dart'; // Import Member Provider
+import '../../../projects/providers/member_provider.dart'; 
 import '../../data/task_repository.dart';
 import '../../domain/task_model.dart';
 import '../../domain/task_status.dart';
@@ -23,7 +23,6 @@ class TaskListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasksAsync = ref.watch(taskListStreamProvider(project.id));
-    // 1. AMBIL DATA MEMBER PROJECT (Untuk Lookup Nama Assignee)
     final membersAsync = ref.watch(projectMembersProvider(project.id));
     
     final currentFilter = ref.watch(filterTypeProvider);
@@ -64,7 +63,6 @@ class TaskListScreen extends ConsumerWidget {
                     );
                   }
 
-                  // Ambil list member (jika loading/error, pakai list kosong dulu)
                   final List<UserModel> members = membersAsync.value ?? [];
 
                   return ListView.builder(
@@ -86,7 +84,6 @@ class TaskListScreen extends ConsumerWidget {
                           ref.read(taskRepositoryProvider).deleteTask(task.id);
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${task.title} deleted')));
                         },
-                        // 2. KIRIM DATA MEMBERS KE WIDGET ITEM
                         child: _buildTaskItem(context, task, ref, members),
                       );
                     },
@@ -112,7 +109,6 @@ class TaskListScreen extends ConsumerWidget {
     );
   }
 
-  // ... (Header & Filter Tabs sama seperti sebelumnya)
   Widget _buildModernHeader(BuildContext context) {
     final String todayDate = DateFormat('EEEE, d MMM').format(DateTime.now());
     return Padding(
@@ -120,14 +116,30 @@ class TaskListScreen extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('My Tasks', style: TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.w800, fontSize: 28, letterSpacing: -0.5)),
-              const SizedBox(height: 4),
-              Text(todayDate, style: TextStyle(color: Colors.grey[500], fontSize: 14, fontWeight: FontWeight.w500)),
-            ],
+          Expanded( 
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 👇 REVISI: Nama Project Dinamis
+                Text(
+                  '${project.name} Tasks', 
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.primaryText,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 24, 
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(todayDate, style: TextStyle(color: Colors.grey[500], fontSize: 14, fontWeight: FontWeight.w500)),
+              ],
+            ),
           ),
+          
+          const SizedBox(width: 10), 
+          
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
             child: Container(
@@ -170,18 +182,14 @@ class TaskListScreen extends ConsumerWidget {
     );
   }
 
-  // 👇 3. UPDATE WIDGET ITEM: TERIMA PARAMETER MEMBERS
   Widget _buildTaskItem(BuildContext context, TaskModel task, WidgetRef ref, List<UserModel> members) {
     final bool isCompleted = task.status == TaskStatus.done;
     final normalDateString = DateFormat('d MMM').format(task.dueDate);
     final currentUser = FirebaseAuth.instance.currentUser;
     final isAssignee = currentUser != null && currentUser.uid == task.assignedToId;
 
-    // LOOKUP NAMA ASSIGNEE
-    // Cari member yang UID-nya cocok dengan assignedToId
     final assigneeUser = members.firstWhere(
       (user) => user.uid == task.assignedToId,
-      // Jika user tidak ditemukan (mungkin sudah di-kick), pakai dummy
       orElse: () => UserModel(uid: '', email: '', name: 'Unknown'), 
     );
 
@@ -214,18 +222,12 @@ class TaskListScreen extends ConsumerWidget {
                   children: [
                     Text(task.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, decoration: isCompleted ? TextDecoration.lineThrough : null, color: isCompleted ? Colors.grey : Colors.black)),
                     const SizedBox(height: 6),
-                    
-                    // 👇 BAGIAN BARU: ROW INFO (Date + Assignee)
                     Row(
                       children: [
-                        // Tanggal
                         Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
                         const SizedBox(width: 4),
                         Text(normalDateString, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                        
-                        const SizedBox(width: 12), // Spacer
-                        
-                        // Nama Assignee (Avatar Kecil + Nama)
+                        const SizedBox(width: 12), 
                         Container(
                           padding: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
@@ -241,7 +243,7 @@ class TaskListScreen extends ConsumerWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                assigneeUser.name, // Tampilkan Nama Asli
+                                assigneeUser.name, 
                                 style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryText),
                               ),
                             ],

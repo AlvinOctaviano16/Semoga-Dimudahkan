@@ -1,7 +1,8 @@
-import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:get/get.dart';
+import 'package:sync_task_app/core/constants/constants.dart';
 import '../providers/chat_provider.dart';
 import '../models/chat_model.dart';
 
@@ -23,13 +24,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
 
   void _sendMessage() {
-    if (_controller.text.trim().isEmpty) return;
+    if (_controller.text.trim().isEmpty) {
+      return;
+    }
 
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must be logged in to send messages.')),
+        Get.snackbar(
+          'Not Logged In',
+          'You must be logged in to send messages.',
+          backgroundColor: Theme.of(context).colorScheme.error,
+          colorText: Theme.of(context).colorScheme.onError,
         );
         return;
       }
@@ -37,7 +43,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final message = ChatMessage(
         id: '',
         senderId: user.uid,
-        senderName: user.displayName ?? user.email ?? 'User',
+        senderName: user.displayName ?? user.email ?? 'Unknown',
         text: _controller.text.trim(),
         timestamp: DateTime.now(),
       );
@@ -45,9 +51,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ref.read(chatRepositoryProvider).sendMessage(widget.projectId, message);
       _controller.clear();
     } catch (e) {
-      log('Error sending message: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending message: $e')),
+      debugPrint('Error sending message: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to send message. Please try again.',
+        backgroundColor: Theme.of(context).colorScheme.error,
+        colorText: Theme.of(context).colorScheme.onError,
       );
     }
   }
@@ -57,10 +66,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chatAsyncValue = ref.watch(chatStreamProvider(widget.projectId));
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: AppColors.background,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.maybePop(context),
+          onPressed: () => Get.back(),
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
         ),
         title: Text(widget.projectName),
@@ -73,9 +84,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 if (FirebaseAuth.instance.currentUser == null) {
                   return const Center(child: Text('Please log in to view messages.'));
                 }
+
                 if (messages.isEmpty) {
                   return const Center(child: Text('No messages yet.'));
                 }
+
                 return ListView.builder(
                   reverse: true, // Show newest at the bottom
                   itemCount: messages.length,
@@ -105,7 +118,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             Text(
                               msg.text,
                               style: TextStyle(
-                                color: isMe ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                                color: isMe ? Theme.of(context).colorScheme.onPrimaryContainer : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ],

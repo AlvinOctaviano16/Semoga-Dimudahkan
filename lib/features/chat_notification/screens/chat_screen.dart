@@ -58,6 +58,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.maybePop(context),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+        ),
         title: Text(widget.projectName),
       ),
       body: Column(
@@ -65,6 +70,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: chatAsyncValue.when(
               data: (messages) {
+                if (FirebaseAuth.instance.currentUser == null) {
+                  return const Center(child: Text('Please log in to view messages.'));
+                }
                 if (messages.isEmpty) {
                   return const Center(child: Text('No messages yet.'));
                 }
@@ -80,7 +88,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: isMe ? Colors.blueAccent : Colors.grey[300],
+                          color: isMe ? Theme.of(context).colorScheme.primaryContainer : Theme.of(context).colorScheme.surfaceContainer,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Column(
@@ -97,7 +105,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             Text(
                               msg.text,
                               style: TextStyle(
-                                color: isMe ? Colors.white : Colors.black,
+                                color: isMe ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -114,18 +122,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
+              spacing: 4.0,
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Type a message...',
-                      border: OutlineInputBorder(),
+                      border: InputBorder.none,
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainer,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24.0),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send),
+                IconButton.filled(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  icon: const Icon(Icons.send_rounded),
                   onPressed: _sendMessage,
                 ),
               ],

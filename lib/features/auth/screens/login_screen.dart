@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get/get.dart';
 import '../../../core/constants/app_colors.dart';
 import '../providers/auth_controller.dart';
-import 'signup_screen.dart'; // Pastikan nama file ini benar nanti
+import 'signup_screen.dart'; 
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -19,7 +19,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch state loading dari controller
     final isLoading = ref.watch(authControllerProvider);
 
     return Scaffold(
@@ -31,7 +30,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo / Icon
               const Icon(Icons.task_alt, size: 80, color: AppColors.primary),
               const SizedBox(height: 20),
               
@@ -59,7 +57,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 30),
 
-              // Tombol Login
               ElevatedButton(
                 onPressed: isLoading ? null : () {
                   ref.read(authControllerProvider.notifier).login(
@@ -79,7 +76,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              // Link ke Signup
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -91,7 +87,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
               ),
 
-              // Link ke Forgot Password
               TextButton(
                 onPressed: () {
                   Get.to(() => const ForgotPasswordScreen());

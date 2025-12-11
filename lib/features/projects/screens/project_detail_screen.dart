@@ -20,10 +20,11 @@ class ProjectDetailScreen extends ConsumerWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Remove Member?"),
-        content: Text("Are you sure you want to remove $memberName from this project?"),
+        backgroundColor: AppColors.surface, // Dialog Gelap
+        title: const Text("Remove Member?", style: TextStyle(color: Colors.white)),
+        content: Text("Are you sure you want to remove $memberName from this project?", style: const TextStyle(color: Colors.grey)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel", style: TextStyle(color: Colors.grey))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true), 
             child: const Text("Remove", style: TextStyle(color: Colors.red))
@@ -55,10 +56,11 @@ class ProjectDetailScreen extends ConsumerWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface, // Dialog Gelap
         title: const Text('Delete Project?', style: TextStyle(color: Colors.red)),
-        content: const Text('This action cannot be undone. All tasks will be deleted too.'),
+        content: const Text('This action cannot be undone. All tasks will be deleted too.', style: TextStyle(color: Colors.grey)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true), 
             child: const Text('Delete Permanently', style: TextStyle(color: Colors.red))
@@ -70,7 +72,6 @@ class ProjectDetailScreen extends ConsumerWidget {
     if (confirm == true) {
       await ref.read(projectRepositoryProvider).deleteProject(project.id);
       if (context.mounted) {
-        Navigator.pop(context); // Kembali ke Dashboard
         Navigator.pop(context); 
       }
     }
@@ -84,12 +85,12 @@ class ProjectDetailScreen extends ConsumerWidget {
     final bool isAdmin = currentUser != null && currentUser.uid == project.ownerId;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background, // 👇 Background Gelap
       appBar: AppBar(
-        title: const Text("Project Details", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: const Text("Project Details", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: Colors.white), // Icon Putih
         actions: [
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline, color: AppColors.primary),
@@ -123,13 +124,14 @@ class ProjectDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(project.name, style: const TextStyle(color: Colors.black, fontSize: 26, fontWeight: FontWeight.bold)),
+            // --- HEADER ---
+            Text(project.name, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            Text(project.description, style: const TextStyle(color: Colors.grey, fontSize: 16, height: 1.5)),
+            Text(project.description, style: TextStyle(color: Colors.grey[400], fontSize: 16, height: 1.5)),
             
             const SizedBox(height: 30),
 
-            // 👇 REVISI: TOMBOL MENUJU TASK LIST
+            // --- TOMBOL MENUJU TASK LIST ---
             SizedBox(
               width: double.infinity,
               height: 55,
@@ -154,6 +156,7 @@ class ProjectDetailScreen extends ConsumerWidget {
             
             const SizedBox(height: 30),
             
+            // --- INVITE CODE ---
             _buildSectionTitle("Invite Code"),
             InkWell(
               onTap: () {
@@ -164,7 +167,7 @@ class ProjectDetailScreen extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.surface, // 👇 Container Gelap
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.primary.withOpacity(0.3)),
                 ),
@@ -180,13 +183,14 @@ class ProjectDetailScreen extends ConsumerWidget {
 
             const SizedBox(height: 30),
 
+            // --- MEMBER LIST ---
             _buildSectionTitle("Team Members"),
             
             membersAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Text("Error: $err"),
+              error: (err, stack) => Text("Error: $err", style: const TextStyle(color: Colors.red)),
               data: (members) {
-                if (members.isEmpty) return const Text("No members yet.");
+                if (members.isEmpty) return const Text("No members yet.", style: TextStyle(color: Colors.grey));
                 
                 return ListView.builder(
                   shrinkWrap: true,
@@ -205,7 +209,7 @@ class ProjectDetailScreen extends ConsumerWidget {
                       ),
                       title: Row(
                         children: [
-                          Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)), // Teks Putih
                           if (isMe) const Text(" (You)", style: TextStyle(color: Colors.grey)),
                           if (isOwner) ...[
                             const SizedBox(width: 8),
@@ -213,7 +217,8 @@ class ProjectDetailScreen extends ConsumerWidget {
                           ]
                         ],
                       ),
-                      subtitle: Text(user.email),
+                      subtitle: Text(user.email, style: TextStyle(color: Colors.grey[500])),
+                      
                       trailing: (isAdmin && !isMe) 
                         ? IconButton(
                             icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
@@ -234,7 +239,7 @@ class ProjectDetailScreen extends ConsumerWidget {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Text(title.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 1.0)),
+      child: Text(title.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[500], letterSpacing: 1.0)),
     );
   }
 }

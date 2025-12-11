@@ -9,7 +9,6 @@ import '../../domain/task_model.dart';
 import '../../domain/task_provider.dart';
 import '../../domain/task_status.dart';
 import '../../domain/task_priority.dart';
-// Import Repository agar bisa panggil fungsi notif
 import '../../data/task_repository.dart'; 
 
 class CreateTaskScreen extends ConsumerStatefulWidget {
@@ -65,13 +64,15 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime.now(), 
       lastDate: DateTime(2100),
-      builder: (context, child) => Theme(data: ThemeData.light(), child: child!),
+      // 👇 Dark Theme untuk Date Picker
+      builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: AppColors.primary, onPrimary: Colors.white, surface: AppColors.surface)), child: child!),
     );
     if (pickedDate == null) return;
     if (!mounted) return;
     final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_selectedDate),
+      builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: AppColors.primary, onPrimary: Colors.white, surface: AppColors.surface)), child: child!),
     );
     if (pickedTime == null) return;
     setState(() {
@@ -105,15 +106,10 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
 
     if (widget.taskToEdit != null) {
-      // MODE EDIT
       ref.read(createTaskNotifierProvider.notifier).editTask(task: taskData);
     } else {
-      // MODE CREATE
       ref.read(createTaskNotifierProvider.notifier).submitTask(task: taskData);
       
-      // 👇 TRIGGER NOTIFIKASI KE ASSIGNEE
-      // Kita panggil manual via Repository
-      // Gunakan Future.delayed agar tidak menghambat UI pop
       Future.delayed(Duration.zero, () {
         ref.read(taskRepositoryProvider).notifyAssignee(
           _selectedAssigneeId!, 
@@ -138,12 +134,12 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     final isEditMode = widget.taskToEdit != null;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background, // Background Gelap
       appBar: AppBar(
-        title: Text(isEditMode ? 'Edit Task' : 'Add Task', style: const TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
+        title: Text(isEditMode ? 'Edit Task' : 'Add Task', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.background,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
         child: Column(
@@ -156,13 +152,13 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                   children: [
                     _buildLabel('What needs to be done?'),
                     TextField(controller: _titleController, 
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white), // Teks Putih
                       decoration: _inputDeco('Example: Fix Bug')),
                     const SizedBox(height: 20),
                     _buildLabel('Description'),
                     TextField(controller: _descController, 
                       maxLines: 3, 
-                      style: const TextStyle(color: Colors.black, fontSize: 16),
+                      style: const TextStyle(color: Colors.white70, fontSize: 16),
                       decoration: _inputDeco('Details...')),
                     const SizedBox(height: 20),
                     _buildLabel('Priority'),
@@ -186,8 +182,11 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                 width: double.infinity, height: 50,
                 child: ElevatedButton(
                   onPressed: isLoading ? null : _submitTask,
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                  child: isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(isEditMode ? "Save" : "Create Task", style: const TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(isEditMode ? "Save" : "Create Task", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
@@ -204,7 +203,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       loading: () => const LinearProgressIndicator(),
       error: (err, stack) => Text('Error loading members: $err', style: const TextStyle(color: Colors.red)),
       data: (members) {
-        if (members.isEmpty) return const Text("No members found inside this project.");
+        if (members.isEmpty) return const Text("No members found inside this project.", style: TextStyle(color: Colors.grey));
 
         if (_selectedAssigneeId != null && !members.any((m) => m.uid == _selectedAssigneeId)) {
           _selectedAssigneeId = null; 
@@ -212,12 +211,14 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)), // Container Gelap
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedAssigneeId,
-              hint: const Text("Select Member"),
+              hint: const Text("Select Member", style: TextStyle(color: Colors.grey)),
               isExpanded: true,
+              dropdownColor: AppColors.surface, // Menu Dropdown Gelap
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
               items: members.map((user) {
                 return DropdownMenuItem(
                   value: user.uid,
@@ -229,7 +230,7 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
                         child: Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Colors.white)),
                       ),
                       const SizedBox(width: 8),
-                      Text(user.name),
+                      Text(user.name, style: const TextStyle(color: Colors.white)), // Teks Putih
                     ],
                   ),
                 );
@@ -242,16 +243,30 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
     );
   }
 
-  Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)));
-  InputDecoration _inputDeco(String hint) => InputDecoration(hintText: hint, filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none));
+  Widget _buildLabel(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[400])));
+  
+  // Update Input Deco agar gelap
+  InputDecoration _inputDeco(String hint) => InputDecoration(
+    hintText: hint, 
+    hintStyle: TextStyle(color: Colors.grey[600]),
+    filled: true, 
+    fillColor: AppColors.surface, 
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+  );
   
    Widget _buildPrioritySelector() {
     return Row(children: TaskPriority.values.map((p) => Expanded(child: GestureDetector(
       onTap: () => setState(() => _selectedPriority = p),
       child: Container(
         margin: const EdgeInsets.only(right: 8), padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: _selectedPriority == p ? AppColors.primary.withOpacity(0.1) : Colors.grey[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: _selectedPriority == p ? AppColors.primary : Colors.transparent)),
-        child: Center(child: Text(p.displayValue, style: TextStyle(color: _selectedPriority == p ? AppColors.primary : Colors.grey))),
+        decoration: BoxDecoration(
+          color: _selectedPriority == p ? AppColors.primary.withOpacity(0.2) : AppColors.surface, 
+          borderRadius: BorderRadius.circular(8), 
+          border: Border.all(color: _selectedPriority == p ? AppColors.primary : Colors.transparent)
+        ),
+        child: Center(child: Text(p.displayValue, style: TextStyle(color: _selectedPriority == p ? AppColors.primary : Colors.grey[400]))),
       ),
     ))).toList());
   }
@@ -261,8 +276,8 @@ class _CreateTaskScreenState extends ConsumerState<CreateTaskScreen> {
       onTap: _pickDateTime,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12)),
-        child: Row(children: [const Icon(Icons.calendar_today, color: AppColors.primary), const SizedBox(width: 10), Text(DateFormat('dd MMM yyyy, HH:mm').format(_selectedDate))]),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+        child: Row(children: [const Icon(Icons.calendar_today, color: AppColors.primary), const SizedBox(width: 10), Text(DateFormat('dd MMM yyyy, HH:mm').format(_selectedDate), style: const TextStyle(color: Colors.white))]),
       ),
     );
   }

@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart'; // Pastikan import ini ada
-import '../../../../core/constants/app_colors.dart'; // Import AppColors
+import 'package:intl/intl.dart'; 
+import '../../../../core/constants/app_colors.dart'; 
 import '../providers/chat_provider.dart';
 import '../domain/chat_model.dart';
 
@@ -33,12 +33,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final message = ChatMessage(
         id: '',
         senderId: user.uid,
-        senderName: user.displayName ?? user.email ?? 'Unknown', // Nama pengirim
+        senderName: user.displayName ?? user.email ?? 'Unknown',
         text: _controller.text.trim(),
         timestamp: DateTime.now(),
       );
 
-      // Panggil Repository via Provider
       ref.read(chatRepositoryProvider).sendMessage(widget.projectId, message);
       _controller.clear();
       
@@ -55,20 +54,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background, // 👇 Background Gelap
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
+        backgroundColor: AppColors.background,
+        elevation: 0, // Flat design agar menyatu
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: Colors.grey[800], height: 1), // Garis pemisah tipis
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.projectName, style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(widget.projectName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             const Text("Team Chat", style: TextStyle(color: Colors.grey, fontSize: 12)),
           ],
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context), // Ganti Get.back()
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Column(
@@ -76,16 +79,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: chatAsyncValue.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Error: $err')),
+              error: (err, stack) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
               data: (messages) {
                 if (messages.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey[300]),
+                        Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.surface.withOpacity(0.5)),
                         const SizedBox(height: 10),
-                        Text('No messages yet. Start chatting!', style: TextStyle(color: Colors.grey[500])),
+                        const Text('No messages yet. Start chatting!', style: TextStyle(color: Colors.grey)),
                       ],
                     ),
                   );
@@ -107,7 +110,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                         decoration: BoxDecoration(
-                          color: isMe ? AppColors.primary : Colors.grey[100],
+                          // 👇 Warna Bubble: Saya (Primary), Teman (Surface/Abu Gelap)
+                          color: isMe ? AppColors.primary : AppColors.surface,
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(12),
                             topRight: const Radius.circular(12),
@@ -123,12 +127,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 padding: const EdgeInsets.only(bottom: 4),
                                 child: Text(
                                   msg.senderName,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: AppColors.primary),
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Colors.blue[200]), // Nama user lain agak terang dikit
                                 ),
                               ),
                             Text(
                               msg.text,
-                              style: TextStyle(color: isMe ? Colors.white : Colors.black87, fontSize: 14),
+                              // 👇 Teks Putih untuk semua agar kontras di background gelap
+                              style: const TextStyle(color: Colors.white, fontSize: 14), 
                             ),
                             const SizedBox(height: 4),
                             Align(
@@ -136,7 +141,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               child: Text(
                                 time,
                                 style: TextStyle(
-                                  color: isMe ? Colors.white70 : Colors.grey,
+                                  color: isMe ? Colors.white70 : Colors.grey[400],
                                   fontSize: 10,
                                 ),
                               ),
@@ -151,12 +156,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
           
-          // INPUT AREA
+          // INPUT AREA GELAP
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, -2))],
+              color: AppColors.background,
+              border: Border(top: BorderSide(color: Colors.grey[800]!, width: 0.5)), // Border atas tipis
             ),
             child: SafeArea(
               child: Row(
@@ -164,12 +169,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      style: const TextStyle(color: Colors.black), // Agar teks terlihat jelas
+                      style: const TextStyle(color: Colors.white), // Input Teks Putih
                       decoration: InputDecoration(
                         hintText: 'Type a message...',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        hintStyle: TextStyle(color: Colors.grey[600]),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: AppColors.surface, // Kolom Input Abu Gelap
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
                       ),

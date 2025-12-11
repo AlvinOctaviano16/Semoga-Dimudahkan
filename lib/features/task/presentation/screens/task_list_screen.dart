@@ -30,7 +30,8 @@ class TaskListScreen extends ConsumerWidget {
     final bool isAdmin = currentUser != null && currentUser.uid == project.ownerId;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      // 👇 UBAH: Background Gelap
+      backgroundColor: AppColors.background, 
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,7 +42,7 @@ class TaskListScreen extends ConsumerWidget {
             Expanded(
               child: tasksAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                error: (err, stack) => Center(child: Text('Error: $err')),
+                error: (err, stack) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
                 data: (tasks) {
                   final filteredTasks = tasks.where((task) {
                     if (currentFilter == 'All') return true;
@@ -55,9 +56,10 @@ class TaskListScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.assignment_outlined, size: 60, color: Colors.grey[300]),
+                          Icon(Icons.assignment_outlined, size: 60, color: AppColors.surface.withOpacity(0.5)),
                           const SizedBox(height: 10),
-                          Text('No tasks found ($currentFilter)', style: const TextStyle(color: Colors.grey)),
+                          // 👇 UBAH: Teks lebih terang
+                          Text('No tasks found ($currentFilter)', style: const TextStyle(color: Colors.grey)), 
                         ],
                       ),
                     );
@@ -75,10 +77,10 @@ class TaskListScreen extends ConsumerWidget {
                         direction: DismissDirection.endToStart,
                         background: Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
-                          color: Colors.red[50],
+                          color: Colors.red[900], // Merah agak gelap biar gak nyolok mata
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: const Icon(Icons.delete_outline, color: Colors.red),
+                          child: const Icon(Icons.delete_outline, color: Colors.white),
                         ),
                         onDismissed: (direction) {
                           ref.read(taskRepositoryProvider).deleteTask(task.id);
@@ -109,24 +111,23 @@ class TaskListScreen extends ConsumerWidget {
     );
   }
 
-  // 👇 PERUBAHAN: Menambahkan Tombol Back di Header
   Widget _buildModernHeader(BuildContext context) {
     final String todayDate = DateFormat('EEEE, d MMM').format(DateTime.now());
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 20, 20, 10), // Padding kiri dikurangi sedikit biar tombol back muat
+      padding: const EdgeInsets.fromLTRB(10, 20, 20, 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 1. TOMBOL BACK
+          // 1. TOMBOL BACK (Warna Putih)
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.primaryText, size: 22),
-            onPressed: () => Navigator.pop(context), // Kembali ke Project Detail
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22),
+            onPressed: () => Navigator.pop(context),
             tooltip: 'Back to Project',
           ),
           
           const SizedBox(width: 4),
 
-          // 2. JUDUL PROJECT (Expanded)
+          // 2. JUDUL PROJECT (Warna Putih)
           Expanded( 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,14 +137,15 @@ class TaskListScreen extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.primaryText,
+                    color: Colors.white, // 👇 UBAH JADI PUTIH
                     fontWeight: FontWeight.w800,
-                    fontSize: 22, // Ukuran sedikit disesuaikan
+                    fontSize: 22, 
                     letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(todayDate, style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+                // 👇 UBAH: Grey yang lebih terang
+                Text(todayDate, style: TextStyle(color: Colors.grey[400], fontSize: 13, fontWeight: FontWeight.w500)), 
               ],
             ),
           ),
@@ -155,8 +157,12 @@ class TaskListScreen extends ConsumerWidget {
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
             child: Container(
               width: 45, height: 45,
-              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-              child: const Icon(Icons.person, color: AppColors.primary),
+              decoration: BoxDecoration(
+                color: AppColors.surface, // 👇 Background Surface
+                shape: BoxShape.circle, 
+                border: Border.all(color: AppColors.primary, width: 2) // Border Biru
+              ),
+              child: const Icon(Icons.person, color: Colors.white),
             ),
           ),
         ],
@@ -187,8 +193,20 @@ class TaskListScreen extends ConsumerWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(color: isActive ? AppColors.surface : Colors.grey[200], borderRadius: BorderRadius.circular(30)),
-        child: Text(text, style: TextStyle(color: isActive ? Colors.white : Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 14)),
+        decoration: BoxDecoration(
+          // 👇 UBAH: Logika Warna Filter (Aktif=Biru, Mati=Surface)
+          color: isActive ? AppColors.primary : AppColors.surface, 
+          borderRadius: BorderRadius.circular(30)
+        ),
+        child: Text(
+          text, 
+          // 👇 UBAH: Teks selalu putih/terang agar kontras
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.grey[400], 
+            fontWeight: FontWeight.bold, 
+            fontSize: 14
+          )
+        ),
       ),
     );
   }
@@ -206,7 +224,13 @@ class TaskListScreen extends ConsumerWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5)]),
+      decoration: BoxDecoration(
+        color: AppColors.surface, // 👇 UBAH: Background Kartu jadi Gelap (Surface)
+        borderRadius: BorderRadius.circular(16), 
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 5, offset: const Offset(0, 2)) // Shadow lebih gelap
+        ]
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
@@ -216,33 +240,57 @@ class TaskListScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
+              // Checkbox
               GestureDetector(
                 onTap: isAssignee 
                   ? () { ref.read(taskRepositoryProvider).updateTask(task.id, isCompleted ? TaskStatus.todo : TaskStatus.done); }
                   : () { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Only the assignee can complete this task!"))); },
                 child: Container(
                   width: 24, height: 24,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: isCompleted ? Colors.green : Colors.transparent, border: Border.all(color: isCompleted ? Colors.green : (isAssignee ? Colors.grey : Colors.grey.withOpacity(0.3)))),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle, 
+                    color: isCompleted ? Colors.green : Colors.transparent, 
+                    border: Border.all(
+                      // 👇 Border warna putih/abu jika belum selesai
+                      color: isCompleted ? Colors.green : (isAssignee ? Colors.grey[400]! : Colors.grey[800]!)
+                    )
+                  ),
                   child: isCompleted ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
                 ),
               ),
               const SizedBox(width: 12),
+              
+              // Info Task
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(task.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, decoration: isCompleted ? TextDecoration.lineThrough : null, color: isCompleted ? Colors.grey : Colors.black)),
+                    Text(
+                      task.title, 
+                      maxLines: 1, 
+                      overflow: TextOverflow.ellipsis, 
+                      style: TextStyle(
+                        fontSize: 16, 
+                        fontWeight: FontWeight.bold, 
+                        decoration: isCompleted ? TextDecoration.lineThrough : null, 
+                        decorationColor: Colors.grey,
+                        // 👇 UBAH: Warna Judul Putih (atau dimmed jika selesai)
+                        color: isCompleted ? Colors.white38 : Colors.white 
+                      )
+                    ),
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
+                        Icon(Icons.calendar_today, size: 12, color: Colors.grey[400]),
                         const SizedBox(width: 4),
-                        Text(normalDateString, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        Text(normalDateString, style: TextStyle(fontSize: 12, color: Colors.grey[400])),
                         const SizedBox(width: 12), 
+                        
+                        // Assignee Pill
                         Container(
                           padding: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
-                            color: Colors.grey[100],
+                            color: Colors.black26, // 👇 Background Pill Assignee lebih gelap
                             borderRadius: BorderRadius.circular(20)
                           ),
                           child: Row(
@@ -255,7 +303,7 @@ class TaskListScreen extends ConsumerWidget {
                               const SizedBox(width: 4),
                               Text(
                                 assigneeUser.name, 
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryText),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white70), // Teks Assignee Putih
                               ),
                             ],
                           ),

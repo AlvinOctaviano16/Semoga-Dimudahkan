@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // [PENTING] Tambah import ini
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/notification_service.dart';
 import '../../auth/screens/profile_screen.dart';
 import '../providers/project_provider.dart';
 import '../repositories/project_repository.dart';
 import 'create_project_screen.dart';
-import 'project_detail_screen.dart'; 
+import 'project_detail_screen.dart';
+// 👇 Tambahkan import ini untuk mengambil Nama User di Header
+import '../../auth/providers/user_provider.dart'; 
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -25,43 +27,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     _syncUserData();
   }
 
-  // 👇 FUNGSI BARU: GABUNGAN SIMPAN TOKEN + UPDATE EMAIL
+  // 👇 LOGIKA ASLI KAMU (TETAP UTUH)
   Future<void> _syncUserData() async {
-    // 1. Ambil user saat ini dari Auth (Login Session)
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
       try {
-        // [PENTING] Paksa aplikasi tarik data terbaru dari server Firebase Auth
-        // Ini yang memperbaiki masalah "email masih lama"
         await user.reload();
-        user = FirebaseAuth.instance.currentUser; // Refresh variabel user
+        user = FirebaseAuth.instance.currentUser; 
         
         if (user == null) return;
 
         print("🔍 Syncing User: ${user.email}");
 
-        // 2. Siapkan Data yang mau di-update ke Database Firestore
         final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
         
         final Map<String, dynamic> updates = {
           'lastActive': FieldValue.serverTimestamp(),
         };
 
-        // 3. Masukkan Email Terbaru (dari Auth) ke Data Update
         if (user.email != null) {
           updates['email'] = user.email; 
         }
 
-        // 4. Masukkan Token FCM (untuk Notifikasi)
         final token = await NotificationService().getToken();
         if (token != null) {
           updates['fcmToken'] = token;
         }
 
-        // 5. Eksekusi Update ke Firestore (Merge agar data lain tidak hilang)
         await userDocRef.set(updates, SetOptions(merge: true));
-        
         print("✅ Data User berhasil disinkronisasi (Email & Token)");
         
       } catch (e) {
@@ -70,28 +64,69 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
+  // Helper Sapaan Waktu
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning,';
+    if (hour < 17) return 'Good Afternoon,';
+    return 'Good Evening,';
+  }
+
   @override
   Widget build(BuildContext context) {
     final projectListAsync = ref.watch(projectListProvider);
+    // 👇 Watch User Profile untuk Header
+    final userProfileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text("My Projects", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        // 👇 UPDATE 1: HEADER PERSONAL
+        toolbarHeight: 80, // Agak tinggi biar muat 2 baris
         backgroundColor: AppColors.background,
         elevation: 0,
+        automaticallyImplyLeading: false,
+        title: userProfileAsync.when(
+          loading: () => const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+               Text("Welcome,", style: TextStyle(color: Colors.grey, fontSize: 14)),
+               Text("Loading...", style: TextStyle(color: Colors.white, fontSize: 20)),
+            ],
+          ),
+          error: (_, __) => const Text("Hello, User", style: TextStyle(color: Colors.white)),
+          data: (snapshot) {
+            final data = snapshot.data() as Map<String, dynamic>?;
+            final name = data?['name'] ?? 'User';
+            
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getGreeting(),
+                  style: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.normal),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  name,
+                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+              ],
+            );
+          },
+        ),
         actions: [
           IconButton(
             icon: const CircleAvatar(
-              radius: 14,
+              radius: 20, // Sedikit diperbesar
               backgroundColor: AppColors.surface,
-              child: Icon(Icons.person, size: 18, color: Colors.white),
+              child: Icon(Icons.person, size: 24, color: Colors.white),
             ),
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 16),
         ],
       ),
       body: projectListAsync.when(
@@ -106,27 +141,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             itemCount: projects.length,
             itemBuilder: (context, index) {
               final project = projects[index];
+              final currentUid = FirebaseAuth.instance.currentUser?.uid;
+              // 👇 Cek Owner
+              final isOwner = project.ownerId == currentUid;
+
               return Card(
                 color: AppColors.surface,
                 margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.primary.withOpacity(0.2),
-                    child: Text(
-                      project.name.isNotEmpty ? project.name[0].toUpperCase() : '?',
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  title: Text(project.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: Text(
-                    project.description, 
-                    maxLines: 2, 
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textSecondary)
-                  ),
-                  
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Radius diperhalus
+                child: InkWell( // Pakai InkWell biar ada efek ripple saat klik
+                  borderRadius: BorderRadius.circular(16),
                   onTap: () {
                     Navigator.push(
                       context, 
@@ -135,8 +159,65 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       )
                     );
                   },
-                  
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textSecondary),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        // Icon Project
+                        CircleAvatar(
+                          backgroundColor: AppColors.primary.withOpacity(0.2),
+                          radius: 24,
+                          child: Text(
+                            project.name.isNotEmpty ? project.name[0].toUpperCase() : '?',
+                            style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        
+                        // Info Project
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                project.name, 
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
+                              ),
+                              const SizedBox(height: 4),
+                              
+                              // 👇 UPDATE 2: INFO OWNER DI BAWAH JUDUL
+                              Row(
+                                children: [
+                                  Icon(
+                                    isOwner ? Icons.verified_user : Icons.group, 
+                                    size: 12, 
+                                    color: isOwner ? Colors.greenAccent : Colors.grey
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isOwner ? "Created by: You" : "Created by: Team Lead",
+                                    style: TextStyle(
+                                      color: isOwner ? Colors.greenAccent : Colors.grey, 
+                                      fontSize: 12
+                                    )
+                                  ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 6),
+                              Text(
+                                project.description, 
+                                maxLines: 1, 
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
+                      ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -144,6 +225,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         },
       ),
 
+      // 👇 FAB ASLI KAMU (TETAP UTUH)
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,

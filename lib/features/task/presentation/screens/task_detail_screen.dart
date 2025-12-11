@@ -1,3 +1,4 @@
+import 'dart:convert'; // Untuk base64Decode
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,11 +10,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../data/storage_service.dart';
 import '../../data/task_repository.dart';
 import '../../domain/task_model.dart';
-import '../../domain/task_status.dart'; 
 import '../widgets/task_status_chip.dart';
 import '../widgets/task_priority_chip.dart'; 
 import 'task_create_screen.dart';
-import 'dart:convert';
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
   final TaskModel task;
@@ -43,18 +42,19 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     final picker = ImagePicker();
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
+      backgroundColor: AppColors.surface, // Background Sheet Gelap
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo (Camera)'),
+              leading: const Icon(Icons.camera_alt, color: Colors.white),
+              title: const Text('Take Photo (Camera)', style: TextStyle(color: Colors.white)),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
+              leading: const Icon(Icons.photo_library, color: Colors.white),
+              title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white)),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
           ],
@@ -65,10 +65,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     if (source == null) return;
 
     final XFile? image = await picker.pickImage(
-      source: source,
-      imageQuality: 25, // Kompresi kualitas
-      maxWidth: 800,   // Resize lebar maksimum
-      );
+      source: source, 
+      imageQuality: 25, 
+      maxWidth: 800,
+    );
     
     if (image != null) {
       if (!mounted) return;
@@ -77,16 +77,18 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: const Text("Add a comment"),
+            backgroundColor: AppColors.surface, // Dialog Gelap
+            title: const Text("Add Comment", style: TextStyle(color: Colors.white)),
             content: TextField(
               controller: _commentController,
-              style: const TextStyle(color: Colors.black),
+              style: const TextStyle(color: Colors.white), // Input Putih
               decoration: InputDecoration(
-                hintText: "Example: Done, but i think it can be improved",
-                hintStyle: const TextStyle(color: Colors.grey),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                hintText: "Ex: Done, but layout is tricky...",
+                hintStyle: TextStyle(color: Colors.grey[500]),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[700]!)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary)),
                 filled: true,
-                fillColor: Colors.grey[50],
+                fillColor: Colors.black26,
               ),
               maxLines: 3,
             ),
@@ -98,10 +100,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, _commentController.text),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary, // Sesuaikan warna
+                  backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text("Send", style: TextStyle(color: Colors.white)),
+                child: const Text("Submit", style: TextStyle(color: Colors.white)),
               ),
             ],
           );
@@ -114,12 +116,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       
       try {
         final file = File(image.path);
-        // Upload gambar ke Storage
         final downloadUrl = await ref
             .read(storageRepositoryProvider)
             .uploadImageProof(file, widget.task.id);
 
-        // Update Data Task di Firestore
         await ref.read(taskRepositoryProvider).submitTaskCompletion(
           taskId: widget.task.id,
           proofUrl: downloadUrl,
@@ -144,13 +144,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     }
   }
 
-  // Logic Delete (Hanya Admin)
   Future<void> _deleteTask() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Delete Task?"),
-        content: const Text("This action cannot be undone."),
+        backgroundColor: AppColors.surface,
+        title: const Text("Delete Task?", style: TextStyle(color: Colors.white)),
+        content: const Text("This action cannot be undone.", style: TextStyle(color: Colors.grey)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
           TextButton(
@@ -163,37 +163,33 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
     if (confirm == true) {
       await ref.read(taskRepositoryProvider).deleteTask(widget.task.id);
-      if (mounted) Navigator.pop(context); // Kembali ke list
+      if (mounted) Navigator.pop(context); 
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Format Waktu
     final dateFormatted = DateFormat('EEEE, d MMM yyyy • HH:mm').format(widget.task.dueDate);
-    
     final completedFormatted = widget.task.completedAt != null
         ? DateFormat('d MMM yyyy, HH:mm').format(widget.task.completedAt!)
         : '-';
 
-    // Define Roles (Siapa yang Login?)
     final currentUser = FirebaseAuth.instance.currentUser;
     final bool isAdmin = currentUser != null && currentUser.uid == widget.projectOwnerId;
     final bool isAssignee = currentUser != null && currentUser.uid == widget.task.assignedToId;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background, // Background Gelap
       appBar: AppBar(
         title: const Text(
           'Task Detail',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: AppColors.primaryText),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // Tombol Edit: Hanya untuk Admin
           if (isAdmin)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
@@ -209,7 +205,6 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                 );
               },
             ),
-          // Tombol Delete: Hanya untuk Admin
           if (isAdmin)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
@@ -222,7 +217,6 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. CHIPS HEADER (Priority & Status)
             Row(
               children: [
                 TaskPriorityChip(priority: widget.task.priority),
@@ -232,102 +226,73 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 2. JUDUL TUGAS
             Text(
               widget.task.title,
               style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primaryText,
-                height: 1.2,
+                fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white, height: 1.2,
               ),
             ),
             const SizedBox(height: 12),
 
-            // 3. DEADLINE
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.red),
+                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.redAccent),
                 ),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Deadline',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      dateFormatted,
-                      style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.w600),
-                    ),
+                    Text('Deadline', style: TextStyle(fontSize: 12, color: Colors.grey[400], fontWeight: FontWeight.w600)),
+                    Text(dateFormatted, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ],
             ),
             
             const SizedBox(height: 30),
-            const Divider(color: AppColors.dividerColor, thickness: 1),
+            const Divider(color: Colors.grey, thickness: 0.5),
             const SizedBox(height: 20),
 
-            // 4. DESKRIPSI
             _buildSectionLabel('Description'),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: AppColors.surface, // Container Gelap
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
-                widget.task.description.isEmpty 
-                    ? 'No additional description.' 
-                    : widget.task.description,
-                style: const TextStyle(
-                  color: AppColors.primaryText, 
-                  fontSize: 15, 
-                  height: 1.5
-                ),
+                widget.task.description.isEmpty ? 'No additional description.' : widget.task.description,
+                style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5),
               ),
             ),
             const SizedBox(height: 30),
 
-            // 5. BUKTI PENGERJAAN (PROOF OF WORK)
             _buildSectionLabel('Proof of Work'),
             
-            // --- LOGIC TAMPILAN (FIXED) ---
-            
-            // KONDISI A: Sudah Ada Bukti (Berarti Selesai)
             if (widget.task.proofUrl != null) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.green[50],
+                  color: Colors.green.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.green[100]!),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.check_circle_rounded, color: Colors.green),
+                        const Icon(Icons.check_circle_rounded, color: Colors.greenAccent),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Task Completed on $completedFormatted',
-                            style: TextStyle(
-                              color: Colors.green[800],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
+                            'Completed on $completedFormatted',
+                            style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                         ),
                       ],
@@ -336,13 +301,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
                         child: Text(
                           '"${widget.task.submissionComment}"',
-                          style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic),
+                          style: TextStyle(color: Colors.grey[300], fontStyle: FontStyle.italic),
                         ),
                       ),
                     ],
@@ -351,45 +313,37 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
               ),
               const SizedBox(height: 16),
               
-              // Gambar Bukti
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: _buildImageDisplay(widget.task.proofUrl!),
               ),
               
-              // Tombol Revisi (Hanya Assignee yang bisa lihat)
               if (isAssignee) ...[
                 const SizedBox(height: 20),
                 SizedBox(
-                  width: double.infinity,
-                  height: 50,
+                  width: double.infinity, height: 50,
                   child: OutlinedButton.icon(
                     onPressed: _isUploading ? null : _uploadProof,
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('Revision / re-upload'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primaryText,
+                      foregroundColor: Colors.white,
                       side: const BorderSide(color: Colors.grey),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
               ],
-            ] 
-            
-            // KONDISI B: Belum Ada Bukti (Belum Selesai)
-            else ...[ 
+            ] else ...[ 
               if (isAssignee) ...[
-                // B1: Saya Assignee -> Tampilkan Kartu Upload
                 GestureDetector(
                   onTap: _isUploading ? null : _uploadProof,
                   child: Container(
-                    height: 180,
-                    width: double.infinity,
+                    height: 180, width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: AppColors.surface,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey[300]!, width: 2),
+                      border: Border.all(color: Colors.grey[700]!, width: 2),
                     ),
                     child: _isUploading 
                         ? const Center(child: CircularProgressIndicator())
@@ -399,48 +353,38 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-                                  ]
+                                  color: Colors.black26, shape: BoxShape.circle,
+                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]
                                 ),
-                                child: const Icon(Icons.cloud_upload_rounded, size: 32, color: AppColors.primary), // Gunakan AppColors.primary atau primaryBlue
+                                child: const Icon(Icons.cloud_upload_rounded, size: 32, color: AppColors.primary),
                               ),
                               const SizedBox(height: 16),
-                              const Text(
-                                'Upload Proof of Work',
-                                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryText),
-                              ),
+                              const Text('Upload Proof of Work', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                               const SizedBox(height: 4),
-                              Text(
-                                'Tap to take a photo from the gallery',
-                                style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                              ),
+                              Text('Tap to take a photo from the gallery', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                             ],
                           ),
                   ),
                 ),
               ] else ...[
-                // B2: Saya Bukan Assignee (Admin/Member Lain) -> Tampilkan Pesan Tunggu
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: Colors.grey[800]!),
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.lock_outline_rounded, size: 40, color: Colors.grey),
-                      const SizedBox(width: 12),
+                      Icon(Icons.lock_outline_rounded, size: 40, color: Colors.grey[600]),
+                      const SizedBox(height: 12),
                       Text(
                         isAdmin
                             ? "Waiting for assignee to complete this task."
                             : "This task is assigned to someone else.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 14),
                       ),
                     ],
                   ),
@@ -455,54 +399,33 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     );
   }
 
-  // Helper Widget
   Widget _buildSectionLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         text.toUpperCase(),
         style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.0,
-          color: Colors.grey[600],
+          fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Colors.grey[500],
         ),
       ),
     );
   }
 
-  // Helper untuk menentukan cara menampilkan gambar
   Widget _buildImageDisplay(String imageString) {
-    // 1. Jika URL Link (https://...)
     if (imageString.startsWith('http')) {
       return Image.network(
-        imageString,
-        height: 220,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (ctx, err, stack) => Container(
-            height: 220,
-            color: Colors.grey[200],
-            child: const Center(child: Text("Failed to load link"))),
+        imageString, height: 220, width: double.infinity, fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => Container(height: 220, color: Colors.grey[800], child: const Center(child: Text("Link Error", style: TextStyle(color: Colors.white)))),
       );
     } 
-    
-    // 2. Jika Base64 String (Kode panjang)
     try {
-      // Kita perlu import 'dart:convert'; di paling atas file ini
       final decodedBytes = base64Decode(imageString);
       return Image.memory(
-        decodedBytes,
-        height: 220,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (ctx, err, stack) => Container(
-            height: 220,
-            color: Colors.grey[200],
-            child: const Center(child: Text("Failed to Load Base64"))),
+        decodedBytes, height: 220, width: double.infinity, fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => Container(height: 220, color: Colors.grey[800], child: const Center(child: Text("Base64 Error", style: TextStyle(color: Colors.white)))),
       );
     } catch (e) {
-      return Container(height: 220, color: Colors.grey[200], child: const Center(child: Text("Format Salah")));
+      return Container(height: 220, color: Colors.grey[800], child: const Center(child: Text("Format Error", style: TextStyle(color: Colors.white))));
     }
   }
 }

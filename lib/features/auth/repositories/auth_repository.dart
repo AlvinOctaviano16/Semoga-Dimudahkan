@@ -102,4 +102,31 @@ class AuthRepository {
       print("Gagal update token: $e");
     }
   }
+  
+  // 1. Fungsi untuk Verifikasi Password Lama (Wajib demi keamanan)
+  Future<void> reauthenticate(String email, String password) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      AuthCredential credential = EmailAuthProvider.credential(email: email, password: password);
+      await user.reauthenticateWithCredential(credential);
+    }
+  }
+
+  // 2. Fungsi Ganti Password
+  Future<void> updatePassword(String newPassword) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await user.updatePassword(newPassword);
+    }
+  }
+
+  // 3. Fungsi Ganti Email
+  Future<void> updateEmail(String newEmail) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // verifyBeforeUpdateEmail mengirim email konfirmasi ke alamat baru
+      // sebelum benar-benar menggantinya di akun. Ini lebih aman.
+      await user.verifyBeforeUpdateEmail(newEmail);
+    }
+  }
 }

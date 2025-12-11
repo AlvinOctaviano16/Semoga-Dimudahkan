@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // [PENTING] Tambah import ini
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/notification_service.dart';
 import '../../auth/screens/profile_screen.dart';
-import '../../auth/repositories/auth_repository.dart';
 import '../providers/project_provider.dart';
 import '../repositories/project_repository.dart';
 import 'create_project_screen.dart';
@@ -22,19 +22,50 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Jalankan penyimpanan token di background saat Dashboard dibuka
-    _saveMyToken();
+    _syncUserData();
   }
 
-  Future<void> _saveMyToken() async {
-    final user = FirebaseAuth.instance.currentUser;
+  // 👇 FUNGSI BARU: GABUNGAN SIMPAN TOKEN + UPDATE EMAIL
+  Future<void> _syncUserData() async {
+    // 1. Ambil user saat ini dari Auth (Login Session)
+    User? user = FirebaseAuth.instance.currentUser;
+
     if (user != null) {
-      // 1. Ambil Token dari HP ini
-      final token = await NotificationService().getToken();
-      if (token != null) {
-        // 2. Simpan ke Database via AuthRepository
-        await ref.read(authRepositoryProvider).updateFcmToken(user.uid, token);
-        print("✅ Token User disimpan/diupdate di Database");
+      try {
+        // [PENTING] Paksa aplikasi tarik data terbaru dari server Firebase Auth
+        // Ini yang memperbaiki masalah "email masih lama"
+        await user.reload();
+        user = FirebaseAuth.instance.currentUser; // Refresh variabel user
+        
+        if (user == null) return;
+
+        print("🔍 Syncing User: ${user.email}");
+
+        // 2. Siapkan Data yang mau di-update ke Database Firestore
+        final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        
+        final Map<String, dynamic> updates = {
+          'lastActive': FieldValue.serverTimestamp(),
+        };
+
+        // 3. Masukkan Email Terbaru (dari Auth) ke Data Update
+        if (user.email != null) {
+          updates['email'] = user.email; 
+        }
+
+        // 4. Masukkan Token FCM (untuk Notifikasi)
+        final token = await NotificationService().getToken();
+        if (token != null) {
+          updates['fcmToken'] = token;
+        }
+
+        // 5. Eksekusi Update ke Firestore (Merge agar data lain tidak hilang)
+        await userDocRef.set(updates, SetOptions(merge: true));
+        
+        print("✅ Data User berhasil disinkronisasi (Email & Token)");
+        
+      } catch (e) {
+        print("⚠️ Gagal sinkronisasi user: $e");
       }
     }
   }
@@ -96,7 +127,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     style: const TextStyle(color: AppColors.textSecondary)
                   ),
                   
-                  // Klik Project -> Masuk ke DETAIL
                   onTap: () {
                     Navigator.push(
                       context, 
@@ -114,25 +144,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         },
       ),
 
-      // 👇 BAGIAN INI YANG DIUBAH
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.end, // Tambahkan ini agar rata kanan
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // TOMBOL 1: JOIN PROJECT (Sekarang pakai .extended)
           FloatingActionButton.extended(
             heroTag: "join_btn",
-            // Saya beri warna surface (gelap) agar sedikit beda hirarkinya dengan tombol Create
-            // Jika ingin sama-sama biru, ganti jadi AppColors.primary
             backgroundColor: AppColors.surface, 
             onPressed: () => _showJoinDialog(context, ref),
             icon: const Icon(Icons.link, color: Colors.white),
             label: const Text("Join Project", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
           
-          const SizedBox(height: 16), // Jarak antar tombol
+          const SizedBox(height: 16),
           
-          // TOMBOL 2: NEW PROJECT (Tetap sama)
           FloatingActionButton.extended(
             heroTag: "create_btn",
             backgroundColor: AppColors.primary,
@@ -148,7 +173,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    // ... (Tidak ada perubahan di sini)
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -176,7 +200,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showJoinDialog(BuildContext context, WidgetRef ref) {
-    // ... (Tidak ada perubahan di sini, sama seperti sebelumnya)
     final codeController = TextEditingController();
     
     showDialog(
